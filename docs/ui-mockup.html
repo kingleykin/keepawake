@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KeepAwake – Mockup giao diện</title>
+<style>
+  :root{
+    --bg:#f3f4f6; --win:#ffffff; --fg:#111827; --muted:#6b7280; --line:#e5e7eb;
+    --chip:#f3f4f6; --chip-on:#111827; --chip-on-fg:#fff;
+    --accent:#16a34a; --accent-soft:#dcfce7; --off:#9ca3af; --off-soft:#e5e7eb;
+    --menu:#ffffff; --shadow:0 10px 30px rgba(0,0,0,.12);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0b0f17; --win:#161b26; --fg:#f3f4f6; --muted:#9ca3af; --line:#273043;
+      --chip:#1f2735; --chip-on:#f3f4f6; --chip-on-fg:#111827;
+      --accent:#22c55e; --accent-soft:#143a26; --off:#6b7280; --off-soft:#273043;
+      --menu:#1b2130; --shadow:0 10px 30px rgba(0,0,0,.5);
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;padding:32px 16px}
+  h1{font-size:20px;margin:0 0 4px} .sub{color:var(--muted);margin:0 0 28px}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 12px}
+  .row{display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start;margin-bottom:48px}
+  .col{flex:0 0 auto}
+
+  /* ---- window chrome ---- */
+  .win{width:320px;background:var(--win);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
+  .titlebar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);font-weight:600}
+  .titlebar .dots{display:flex;gap:6px;margin-right:4px}
+  .dots i{width:12px;height:12px;border-radius:50%;display:block;background:#ff5f57}
+  .dots i:nth-child(2){background:#febc2e}.dots i:nth-child(3){background:#28c840}
+  .titlebar .sp{flex:1}
+  .titlebar .gear{color:var(--muted);font-size:16px;cursor:pointer}
+  .body{padding:20px 20px 12px}
+  .footer{display:flex;justify-content:space-between;padding:10px 16px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
+
+  /* ---- big toggle ---- */
+  .toggle{position:relative;width:132px;height:132px;margin:8px auto 14px;border-radius:50%;display:grid;place-items:center;cursor:pointer}
+  .toggle svg{position:absolute;inset:0;transform:rotate(-90deg)}
+  .toggle .inner{width:108px;height:108px;border-radius:50%;display:grid;place-items:center;font-size:44px}
+  .toggle.on .inner{background:var(--accent);color:#fff;box-shadow:0 8px 24px rgba(22,163,74,.35)}
+  .toggle.off .inner{background:var(--off-soft);color:var(--off)}
+  .status{text-align:center;font-weight:700;letter-spacing:.06em;font-size:13px}
+  .status.on{color:var(--accent)} .status.off{color:var(--muted)}
+  .remain{text-align:center;color:var(--muted);font-variant-numeric:tabular-nums;margin-bottom:18px}
+
+  .label{font-size:12px;color:var(--muted);margin:14px 0 8px;font-weight:600}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{padding:6px 10px;border-radius:999px;background:var(--chip);font-size:12px;font-weight:600;cursor:pointer;border:1px solid transparent}
+  .chip.on{background:var(--chip-on);color:var(--chip-on-fg)}
+  .radio{display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer}
+  .radio i{width:16px;height:16px;border-radius:50%;border:2px solid var(--muted);display:inline-block}
+  .radio.on i{border-color:var(--accent);background:radial-gradient(var(--accent) 45%,transparent 50%)}
+
+  /* ---- tray ---- */
+  .tray{position:relative;width:260px}
+  .bar{height:28px;background:var(--win);border:1px solid var(--line);border-radius:8px;display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:0 10px;font-size:13px}
+  .bar .ic{opacity:.55}
+  .bar .ic.app{opacity:1;background:var(--accent-soft);border-radius:4px;padding:0 4px}
+  .menu{margin-top:6px;background:var(--menu);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:6px;font-size:13px}
+  .mi{padding:6px 10px;border-radius:6px;display:flex;gap:8px;align-items:center}
+  .mi.hdr{color:var(--muted);font-size:12px}
+  .mi.sel{background:var(--accent);color:#fff}
+  .mi .chk{width:14px;display:inline-block;text-align:center}
+  .sep{height:1px;background:var(--line);margin:4px 6px}
+  .mi.ind{padding-left:32px}
+
+  /* ---- settings ---- */
+  .set{padding:16px 20px}
+  .opt{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
+  .opt:last-child{border-bottom:none}
+  .sw{width:38px;height:22px;border-radius:999px;background:var(--off-soft);position:relative;flex:0 0 auto}
+  .sw::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+  .sw.on{background:var(--accent)} .sw.on::after{left:19px}
+  .sel{background:var(--chip);border-radius:6px;padding:4px 8px;font-size:12px;font-weight:600}
+  .links{display:flex;gap:14px;font-size:12px;color:var(--muted);padding:12px 20px;border-top:1px solid var(--line)}
+  .cap{color:var(--muted);font-size:12px;margin-top:10px;max-width:320px}
+</style>
+</head>
+<body>
+<h1>☕ KeepAwake – Mockup giao diện</h1>
+<p class="sub">Ba màn hình: cửa sổ chính (trạng thái bật và tắt), menu tray, cài đặt. Tự đổi sáng/tối theo hệ thống.</p>
+
+<div class="row">
+  <div class="col">
+    <h2>1a. Cửa sổ chính – đang giữ thức</h2>
+    <div class="win">
+      <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span>☕ KeepAwake<span class="sp"></span><span class="gear">⚙</span></div>
+      <div class="body">
+        <div class="toggle on">
+          <svg viewBox="0 0 132 132" width="132" height="132">
+            <circle cx="66" cy="66" r="62" fill="none" stroke="var(--off-soft)" stroke-width="5"/>
+            <circle cx="66" cy="66" r="62" fill="none" stroke="var(--accent)" stroke-width="5" stroke-linecap="round" stroke-dasharray="389.6" stroke-dashoffset="100"/>
+          </svg>
+          <div class="inner">☕</div>
+        </div>
+        <div class="status on">ĐANG GIỮ THỨC</div>
+        <div class="remain">còn 1:29:58</div>
+
+        <div class="label">THỜI GIAN</div>
+        <div class="chips">
+          <span class="chip">15p</span><span class="chip">30p</span><span class="chip">1h</span>
+          <span class="chip on">2h</span><span class="chip">4h</span>
+          <span class="chip">∞ Vô hạn</span><span class="chip">⏱ Tùy chỉnh</span>
+        </div>
+
+        <div class="label">CHẾ ĐỘ</div>
+        <div class="radio on"><i></i>Giữ cả màn hình</div>
+        <div class="radio"><i></i>Chỉ giữ hệ thống (màn hình được phép tắt)</div>
+      </div>
+      <div class="footer"><span>v1.0.0</span><span>Ẩn xuống tray</span></div>
+    </div>
+    <p class="cap">Vòng tròn quanh nút là tiến trình đếm ngược. Bấm chip thời gian khi đang bật sẽ đặt lại bộ đếm.</p>
+  </div>
+
+  <div class="col">
+    <h2>1b. Cửa sổ chính – đang tắt</h2>
+    <div class="win">
+      <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span>☕ KeepAwake<span class="sp"></span><span class="gear">⚙</span></div>
+      <div class="body">
+        <div class="toggle off">
+          <svg viewBox="0 0 132 132" width="132" height="132">
+            <circle cx="66" cy="66" r="62" fill="none" stroke="var(--off-soft)" stroke-width="5"/>
+          </svg>
+          <div class="inner">☕</div>
+        </div>
+        <div class="status off">ĐANG TẮT</div>
+        <div class="remain">bấm để giữ máy thức</div>
+
+        <div class="label">THỜI GIAN</div>
+        <div class="chips">
+          <span class="chip">15p</span><span class="chip">30p</span><span class="chip on">1h</span>
+          <span class="chip">2h</span><span class="chip">4h</span>
+          <span class="chip">∞ Vô hạn</span><span class="chip">⏱ Tùy chỉnh</span>
+        </div>
+
+        <div class="label">CHẾ ĐỘ</div>
+        <div class="radio on"><i></i>Giữ cả màn hình</div>
+        <div class="radio"><i></i>Chỉ giữ hệ thống (màn hình được phép tắt)</div>
+      </div>
+      <div class="footer"><span>v1.0.0</span><span>Ẩn xuống tray</span></div>
+    </div>
+    <p class="cap">Nút xám, không có vòng tiến trình. Chip thời gian = giá trị sẽ dùng khi bật.</p>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col">
+    <h2>2. Tray icon + menu (chuột phải)</h2>
+    <div class="tray">
+      <div class="bar"><span class="ic">🔋</span><span class="ic">📶</span><span class="ic app">☕</span><span>22:41</span></div>
+      <div class="menu">
+        <div class="mi hdr">☕ KeepAwake — đang bật · còn 1:29:58</div>
+        <div class="sep"></div>
+        <div class="mi"><span class="chk">✓</span>Giữ thức</div>
+        <div class="sep"></div>
+        <div class="mi ind">15 phút</div>
+        <div class="mi ind">30 phút</div>
+        <div class="mi ind">1 giờ</div>
+        <div class="mi ind sel">2 giờ</div>
+        <div class="mi ind">4 giờ</div>
+        <div class="mi ind">Vô thời hạn</div>
+        <div class="sep"></div>
+        <div class="mi"><span class="chk"></span>Mở cửa sổ</div>
+        <div class="mi"><span class="chk"></span>Cài đặt…</div>
+        <div class="sep"></div>
+        <div class="mi"><span class="chk"></span>Thoát</div>
+      </div>
+    </div>
+    <p class="cap">Icon ☕ xám khi tắt, có màu khi bật. Click trái = bật/tắt nhanh, click phải = menu này.</p>
+  </div>
+
+  <div class="col">
+    <h2>3. Cài đặt (⚙)</h2>
+    <div class="win">
+      <div class="titlebar"><span style="color:var(--muted);cursor:pointer">‹</span>Cài đặt<span class="sp"></span></div>
+      <div class="set">
+        <div class="opt"><span>Khởi động cùng hệ thống</span><span class="sw on"></span></div>
+        <div class="opt"><span>Tự giữ thức khi mở app</span><span class="sw"></span></div>
+        <div class="opt"><span>Đóng cửa sổ → ẩn xuống tray</span><span class="sw on"></span></div>
+        <div class="opt"><span>Thời gian mặc định</span><span class="sel">1 giờ ▾</span></div>
+        <div class="opt"><span>Chế độ mặc định</span><span class="sel">Giữ cả màn hình ▾</span></div>
+        <div class="opt"><span>Ngôn ngữ</span><span class="sel">Theo hệ thống ▾</span></div>
+      </div>
+      <div class="links"><span>Phiên bản 1.0.0</span><span>Kiểm tra cập nhật</span><span>GitHub</span></div>
+    </div>
+    <p class="cap">Mở trong cùng cửa sổ (trượt từ phải), không mở cửa sổ mới.</p>
+  </div>
+</div>
+</body>
+</html>

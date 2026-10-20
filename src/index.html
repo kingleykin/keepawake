@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KeepAwake</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="home" class="view">
+    <div class="topbar">
+      <button id="open-settings" class="icon-btn" type="button" data-i18n-label="settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+      </button>
+    </div>
+
+    <button id="toggle" class="toggle" type="button" aria-pressed="false">
+      <svg class="ring" viewBox="0 0 132 132" aria-hidden="true">
+        <circle class="track" cx="66" cy="66" r="62"/>
+        <circle id="progress" class="progress" cx="66" cy="66" r="62"/>
+      </svg>
+      <span class="face">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <path class="cup-body" d="M7 13h15v6a6 6 0 0 1-6 6h-3a6 6 0 0 1-6-6z"/>
+          <path class="cup-line" d="M22 15h2a3 3 0 0 1 0 6h-2M5 27.5h19"/>
+          <path class="cup-steam" d="M11 5c-1.5 1.5 1.5 3 0 4.5M14.5 5c-1.5 1.5 1.5 3 0 4.5M18 5c-1.5 1.5 1.5 3 0 4.5"/>
+        </svg>
+      </span>
+    </button>
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+    <p id="detail" class="detail"></p>
+
+    <section aria-labelledby="duration-label">
+      <h2 id="duration-label" data-i18n="duration"></h2>
+      <div id="durations" class="chips"></div>
+    </section>
+
+    <section aria-labelledby="mode-label">
+      <h2 id="mode-label" data-i18n="mode"></h2>
+      <label class="radio">
+        <input type="radio" name="mode" value="display">
+        <span data-i18n="modeDisplay"></span>
+      </label>
+      <label class="radio">
+        <input type="radio" name="mode" value="system">
+        <span><span data-i18n="modeSystem"></span> <small data-i18n="modeSystemHint"></small></span>
+      </label>
+    </section>
+
+    <footer>
+      <span id="version-short"></span>
+      <button id="hide" class="link" type="button" data-i18n="hide"></button>
+    </footer>
+  </main>
+
+  <section id="settings" class="view" hidden>
+    <div class="topbar">
+      <button id="back" class="link back" type="button">‹ <span data-i18n="back"></span></button>
+      <h1 data-i18n="settings"></h1>
+    </div>
+
+    <label class="opt">
+      <span data-i18n="launchAtLogin"></span>
+      <input id="autostart" class="switch" type="checkbox" role="switch">
+    </label>
+    <label class="opt">
+      <span data-i18n="closeToTray"></span>
+      <input id="close-to-tray" class="switch" type="checkbox" role="switch">
+    </label>
+    <label class="opt">
+      <span data-i18n="language"></span>
+      <select id="language">
+        <option value="en">English</option>
+        <option value="vi">Tiếng Việt</option>
+      </select>
+    </label>
+    <p id="settings-error" class="error" hidden></p>
+
+    <button id="quit" class="danger" type="button" data-i18n="quit"></button>
+
+    <footer>
+      <span id="version"></span>
+      <button id="github" class="link" type="button">GitHub</button>
+    </footer>
+  </section>
+
+  <script src="i18n.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
