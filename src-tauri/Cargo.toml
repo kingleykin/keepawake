@@ -32,4 +32,4 @@ opt-level = "s"
 strip = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
-zbus = "5"
+zbus = "6"
