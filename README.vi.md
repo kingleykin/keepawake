@@ -119,7 +119,7 @@ Chi tiết cấu trúc dự án và quy trình phát hành xem trong [README ti�
 
 ## Đóng góp
 
-Rất hoan nghênh báo lỗi và pull request. Xin giữ app đơn giản: làm một việc và làm tốt. Khi báo lỗi trên Linux, hãy ghi rõ bản phân phối, môi trường desktop, và đang dùng Wayland hay X11.
+Rất hoan nghênh báo lỗi và pull request. Mọi thay đổi vào `main` phải qua pull request, qua CI trên cả 3 hệ điều hành và được chủ dự án duyệt. Báo lỗi bảo mật xem [SECURITY.md](SECURITY.md). Xin giữ app đơn giản: làm một việc và làm tốt. Khi báo lỗi trên Linux, hãy ghi rõ bản phân phối, môi trường desktop, và đang dùng Wayland hay X11.
 
 ## Giấy phép
 

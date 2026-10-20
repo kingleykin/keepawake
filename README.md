@@ -161,7 +161,7 @@ GitHub Actions builds macOS, Windows and Linux in parallel and publishes the rel
 
 ## Contributing
 
-Bug reports and pull requests are welcome. Please keep the app simple: one job, done well. If you are reporting a Linux problem, include your distro, desktop, and whether you use Wayland or X11.
+Bug reports and pull requests are welcome. Changes to `main` go through a pull request, must pass CI on all three systems, and need a review from the maintainer. To report a security problem, see [SECURITY.md](SECURITY.md). Please keep the app simple: one job, done well. If you are reporting a Linux problem, include your distro, desktop, and whether you use Wayland or X11.
 
 ## License
 
