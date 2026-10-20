@@ -9,6 +9,11 @@ updates:
     groups:
       rust:
         patterns: ["*"]
+    ignore:
+      # zbus must stay on the same major version as the keepawake crate,
+      # and zbus 6 removed the blocking API that the Linux backend uses.
+      - dependency-name: zbus
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: /
