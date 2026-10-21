@@ -29,6 +29,38 @@ struct Session {
     error: Option<String>,
 }
 
+impl Session {
+    /// A new session: the timer, if any, starts counting from `now`.
+    fn started(result: Result<(), String>, now: u64, duration_min: u32) -> Self {
+        Self::answered(result, ends_at(now, duration_min))
+    }
+
+    /// The same session with a new OS request, e.g. after a mode change.
+    /// The countdown carries on instead of starting over.
+    fn renewed(&self, result: Result<(), String>) -> Self {
+        Self::answered(result, self.ends_at_ms)
+    }
+
+    /// The session once the OS has answered a keep-awake request.
+    fn answered(result: Result<(), String>, ends_at_ms: Option<u64>) -> Self {
+        match result {
+            Ok(()) => Session {
+                active: true,
+                ends_at_ms,
+                error: None,
+            },
+            Err(error) => {
+                eprintln!("keep awake failed: {error}");
+                Session {
+                    active: false,
+                    ends_at_ms: None,
+                    error: Some(error),
+                }
+            }
+        }
+    }
+}
+
 struct AppState {
     awake: Awake,
     /// Serialises start/stop so the OS request and `session` never disagree.
@@ -74,8 +106,9 @@ fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
-fn ends_at(duration_min: u32) -> Option<u64> {
-    (duration_min > 0).then(|| now_ms() + u64::from(duration_min) * 60_000)
+/// When a timer of `duration_min` started at `now` runs out. Zero means no limit.
+fn ends_at(now: u64, duration_min: u32) -> Option<u64> {
+    (duration_min > 0).then(|| now + u64::from(duration_min) * 60_000)
 }
 
 fn snapshot(app: &AppHandle) -> Snapshot {
@@ -130,21 +163,21 @@ fn start(app: &AppHandle) {
         (settings.mode, settings.duration_min)
     };
     let result = state.awake.acquire(mode);
-    *lock(&state.session) = match result {
-        Ok(()) => Session {
-            active: true,
-            ends_at_ms: ends_at(duration),
-            error: None,
-        },
-        Err(error) => {
-            eprintln!("keep awake failed: {error}");
-            Session {
-                active: false,
-                ends_at_ms: None,
-                error: Some(error),
-            }
-        }
-    };
+    *lock(&state.session) = Session::started(result, now_ms(), duration);
+}
+
+/// Hand the OS a request for the current mode, keeping the running timer.
+/// Does nothing when keep-awake is off.
+fn renew(app: &AppHandle) {
+    let state = app.state::<AppState>();
+    let _op = lock(&state.op);
+    if !lock(&state.session).active {
+        return;
+    }
+    let mode = lock(&state.settings).mode;
+    let result = state.awake.acquire(mode);
+    let mut session = lock(&state.session);
+    *session = session.renewed(result);
 }
 
 fn stop(app: &AppHandle) {
@@ -171,7 +204,7 @@ fn select_duration(app: &AppHandle, minutes: u32) -> Result<(), String> {
     let state = app.state::<AppState>();
     let mut session = lock(&state.session);
     if session.active {
-        session.ends_at_ms = ends_at(minutes);
+        session.ends_at_ms = ends_at(now_ms(), minutes);
     }
     Ok(())
 }
@@ -292,9 +325,7 @@ async fn set_duration(app: AppHandle, minutes: u32) -> Result<Snapshot, String> 
 #[tauri::command]
 async fn set_mode(app: AppHandle, mode: Mode) -> Snapshot {
     update_settings(&app, |s| s.mode = mode);
-    if is_active(&app) {
-        start(&app);
-    }
+    renew(&app);
     publish(&app)
 }
 
@@ -402,4 +433,50 @@ pub fn run() {
             } => show_window(app),
             _ => {}
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const NOW: u64 = 1_000_000;
+
+    #[test]
+    fn timer_ends_after_the_chosen_minutes() {
+        assert_eq!(ends_at(NOW, 15), Some(NOW + 15 * 60_000));
+        assert_eq!(ends_at(NOW, 0), None, "zero means no limit");
+    }
+
+    #[test]
+    fn starting_begins_a_new_countdown() {
+        let session = Session::started(Ok(()), NOW, 60);
+        assert!(session.active);
+        assert_eq!(session.ends_at_ms, Some(NOW + 60 * 60_000));
+        assert_eq!(session.error, None);
+    }
+
+    #[test]
+    fn renewing_keeps_the_countdown() {
+        let session = Session::started(Ok(()), NOW, 30);
+        let renewed = session.renewed(Ok(()));
+        assert!(renewed.active);
+        assert_eq!(renewed.ends_at_ms, session.ends_at_ms);
+
+        let unlimited = Session::started(Ok(()), NOW, 0).renewed(Ok(()));
+        assert!(unlimited.active);
+        assert_eq!(unlimited.ends_at_ms, None);
+    }
+
+    #[test]
+    fn a_refused_request_switches_off() {
+        let session = Session::started(Ok(()), NOW, 30);
+        let refused = session.renewed(Err("denied".into()));
+        assert!(!refused.active);
+        assert_eq!(refused.ends_at_ms, None);
+        assert_eq!(refused.error.as_deref(), Some("denied"));
+
+        let refused = Session::started(Err("denied".into()), NOW, 30);
+        assert!(!refused.active);
+        assert_eq!(refused.ends_at_ms, None);
+    }
 }

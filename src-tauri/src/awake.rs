@@ -226,6 +226,82 @@ mod tests {
         assert_eq!(mine(&assertions()), 0);
     }
 
+    /// Checks the real OS request on Windows with `powercfg /requests`, which
+    /// needs an elevated shell. Run with `cargo test -- --ignored`.
+    #[cfg(target_os = "windows")]
+    #[test]
+    #[ignore = "touches real power management"]
+    fn windows_request_is_created_and_released() {
+        // Which `powercfg /requests` sections list this test process.
+        let held = || {
+            let out = std::process::Command::new("powercfg")
+                .arg("/requests")
+                .output()
+                .expect("powercfg");
+            let text = String::from_utf8_lossy(&out.stdout).into_owned();
+            assert!(out.status.success(), "powercfg /requests failed: {text}");
+            let exe = std::env::current_exe().unwrap();
+            let exe = exe.file_name().unwrap().to_string_lossy().to_lowercase();
+            let mut section = String::new();
+            let mut found = Vec::new();
+            for line in text.lines() {
+                if let Some(name) = line.strip_suffix(':').filter(|n| !n.starts_with(' ')) {
+                    section = name.trim().to_string();
+                } else if line.to_lowercase().contains(&exe) {
+                    found.push(section.clone());
+                }
+            }
+            found
+        };
+
+        let awake = Awake::spawn();
+        assert_eq!(held(), Vec::<String>::new());
+
+        awake.acquire(Mode::Display).unwrap();
+        assert_eq!(held(), ["DISPLAY", "SYSTEM"]);
+
+        awake.acquire(Mode::System).unwrap();
+        assert_eq!(held(), ["SYSTEM"], "system mode lets the display sleep");
+
+        awake.release();
+        assert_eq!(held(), Vec::<String>::new());
+    }
+
+    /// Linux has no single API, so this only checks that every backend either
+    /// works or fails cleanly, and that nothing is left behind. Run with
+    /// `dbus-run-session -- cargo test -- --ignored`.
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[ignore = "touches real power management"]
+    fn linux_request_never_panics_or_leaks() {
+        let inhibitors = || {
+            std::process::Command::new("systemd-inhibit")
+                .arg("--list")
+                .output()
+                .map(|out| String::from_utf8_lossy(&out.stdout).into_owned())
+                .unwrap_or_default()
+        };
+
+        let awake = Awake::spawn();
+        for mode in [Mode::Display, Mode::System, Mode::Display] {
+            match awake.acquire(mode) {
+                Ok(()) => eprintln!("{mode:?}: held\n{}", inhibitors()),
+                Err(error) => {
+                    eprintln!("{mode:?}: refused: {error}");
+                    assert!(
+                        !error.contains("panicked") && !error.contains("thread stopped"),
+                        "{error}"
+                    );
+                }
+            }
+            awake.release();
+            assert!(
+                !inhibitors().contains(REASON),
+                "an inhibitor was left behind"
+            );
+        }
+    }
+
     #[test]
     fn release_without_acquire_is_harmless() {
         let awake = Awake::spawn();
