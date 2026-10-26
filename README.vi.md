@@ -20,10 +20,12 @@
 ## Chức năng
 
 - **Một cú bấm.** Bấm nút tròn lớn, hoặc click trái vào icon trên khay (macOS và Windows).
-- **Hẹn giờ.** 15 phút, 30 phút, 1 giờ, 2 giờ, 4 giờ, hoặc vô hạn. Hết giờ tự tắt.
+- **Hẹn giờ.** 15 phút, 30 phút, 1 giờ, 2 giờ, 4 giờ, vô hạn, hoặc tùy chỉnh: số phút bất kỳ, hoặc "đến 18:30". Hết giờ tự tắt và báo bằng thông báo.
+- **Phím tắt.** ⌥⌘K trên macOS, Ctrl+Alt+K trên Windows và Linux, dùng được từ mọi ứng dụng.
 - **Hai chế độ.** Giữ cả màn hình, hoặc chỉ giữ hệ thống và cho phép màn hình tắt.
 - **Nằm ở khay hệ thống.** Menu hiện thời gian còn lại. Chọn một mốc thời gian trong menu sẽ bật luôn.
 - **Khởi động cùng hệ thống.** Chạy ngầm ở khay, không mở cửa sổ.
+- **Cập nhật.** Cài đặt báo khi có bản mới. Chỉ cài khi bạn bấm Cập nhật.
 - **Tiếng Anh và tiếng Việt.** Mặc định tiếng Anh, đổi trong Cài đặt.
 - **Nhẹ.** Viết bằng [Tauri](https://tauri.app) và Rust, bộ cài vài MB.
 - **Trạng thái trung thực.** Chỉ hiện "Đang giữ thức" khi hệ điều hành đã chấp nhận. Nếu bị từ chối, app hiện lỗi.
@@ -97,6 +99,20 @@ App **không** chặn việc bạn chủ động cho máy ngủ, ví dụ gập 
 | Linux | Thử XDG desktop portal `Inhibit` trước, sau đó `org.freedesktop.ScreenSaver` và systemd-logind | `systemd-inhibit --list` |
 
 **Lưu ý trên Linux.** GNOME và KDE hoạt động trên cả Wayland và X11 qua desktop portal. Một số compositor Wayland tối giản như Sway, Hyprland có thể bỏ qua yêu cầu này. Nếu không có dịch vụ nào chấp nhận, app hiện lỗi thay vì giả vờ đang chạy. Trên Linux, click trái vào icon khay sẽ mở menu.
+
+## Cài đặt trong app
+
+| Mục | Mặc định | |
+|---|---|---|
+| Khởi động cùng hệ thống | Tắt | Chạy ẩn ở khay. |
+| Nút đóng sẽ ẩn xuống tray | Bật | Nếu tắt, đóng cửa sổ là thoát app. |
+| Báo khi hết giờ | Bật | Một thông báo khi hết giờ và app tự tắt giữ thức. |
+| Phím tắt | Bật | ⌥⌘K / Ctrl+Alt+K. Nếu ứng dụng khác đã dùng tổ hợp này, Cài đặt sẽ báo và app vẫn chạy bình thường. |
+| Ngôn ngữ | Tiếng Anh | Tiếng Anh hoặc tiếng Việt. |
+
+**Phím tắt trên Linux.** Phím tắt toàn cục cần X11. Trên Wayland chỉ chạy ở desktop có chuyển phím tắt cho app X11, nên khay và cửa sổ vẫn là cách chắc chắn nhất.
+
+**Cập nhật.** Vài giây sau khi mở và mỗi lần mở Cài đặt, KeepAwake tải file `latest.json` của bản phát hành mới nhất trên GitHub. Không gửi dữ liệu nào khác. Bản mới chỉ được cài sau khi bạn bấm **Cập nhật**, và chỉ khi có chữ ký bằng khóa cập nhật của dự án. Trên Linux, bản AppImage, `.deb` và `.rpm` đều cập nhật được; bản `.deb` và `.rpm` sẽ hỏi mật khẩu.
 
 ## Build từ mã nguồn
 

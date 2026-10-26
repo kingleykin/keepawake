@@ -1,7 +1,7 @@
 {
   "name": "keepawake",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Keep your computer awake. One click, from the tray. macOS, Windows and Linux.",
   "license": "MIT",
   "type": "module",
