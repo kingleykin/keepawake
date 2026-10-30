@@ -21,7 +21,7 @@
 
 - **Một cú bấm.** Bấm nút tròn lớn, hoặc click trái vào icon trên khay (macOS và Windows).
 - **Hẹn giờ.** 15 phút, 30 phút, 1 giờ, 2 giờ, 4 giờ, vô hạn, hoặc tùy chỉnh: số phút bất kỳ, hoặc "đến 18:30". Hết giờ tự tắt và báo bằng thông báo.
-- **Phím tắt.** ⌥⌘K trên macOS, Ctrl+Alt+K trên Windows và Linux, dùng được từ mọi ứng dụng.
+- **Phím tắt.** ⌥⌘K trên macOS, Ctrl+Alt+K trên Windows và Linux, dùng được từ mọi ứng dụng. Mặc định tắt, bật trong Cài đặt.
 - **Hai chế độ.** Giữ cả màn hình, hoặc chỉ giữ hệ thống và cho phép màn hình tắt.
 - **Nằm ở khay hệ thống.** Menu hiện thời gian còn lại. Chọn một mốc thời gian trong menu sẽ bật luôn.
 - **Khởi động cùng hệ thống.** Chạy ngầm ở khay, không mở cửa sổ.
@@ -107,7 +107,7 @@ App **không** chặn việc bạn chủ động cho máy ngủ, ví dụ gập 
 | Khởi động cùng hệ thống | Tắt | Chạy ẩn ở khay. |
 | Nút đóng sẽ ẩn xuống tray | Bật | Nếu tắt, đóng cửa sổ là thoát app. |
 | Báo khi hết giờ | Bật | Một thông báo khi hết giờ và app tự tắt giữ thức. |
-| Phím tắt | Bật | ⌥⌘K / Ctrl+Alt+K. Nếu ứng dụng khác đã dùng tổ hợp này, Cài đặt sẽ báo và app vẫn chạy bình thường. |
+| Phím tắt | Tắt | ⌥⌘K / Ctrl+Alt+K. Mặc định tắt vì tổ hợp này có nghĩa khác ở một số nơi: Ctrl+Alt+K là AltGr+K trên một số bàn phím Windows, còn ⌥⌘K mở Web Console của Firefox. Nếu ứng dụng khác đã dùng tổ hợp này, Cài đặt sẽ báo và app vẫn chạy bình thường. |
 | Ngôn ngữ | Tiếng Anh | Tiếng Anh hoặc tiếng Việt. |
 
 **Phím tắt trên Linux.** Phím tắt toàn cục cần X11. Trên Wayland chỉ chạy ở desktop có chuyển phím tắt cho app X11, nên khay và cửa sổ vẫn là cách chắc chắn nhất.

@@ -27,7 +27,7 @@
 
 - **One click.** Press the big button, or left-click the tray icon on macOS and Windows.
 - **Timer.** 15 min, 30 min, 1 h, 2 h, 4 h, no limit, or a custom time: any number of minutes, or "until 18:30". It switches itself off when time is up and tells you with a notification.
-- **Keyboard shortcut.** ⌥⌘K on macOS, Ctrl+Alt+K on Windows and Linux, from any app.
+- **Keyboard shortcut.** ⌥⌘K on macOS, Ctrl+Alt+K on Windows and Linux, from any app. Off by default; switch it on in Settings.
 - **Two modes.** Keep the display on, or keep only the system awake and let the screen turn off.
 - **Lives in the tray.** The menu shows the countdown and lets you pick a time, which also switches keep-awake on.
 - **Launch at login.** Starts quietly in the tray.
@@ -113,7 +113,7 @@ It does **not** stop sleep that you ask for yourself, such as closing a laptop l
 | Launch at login | Off | Starts hidden in the tray. |
 | Close button hides to tray | On | Otherwise closing the window quits. |
 | Notify when time is up | On | One notification when the timer switches keep-awake off. |
-| Shortcut | On | ⌥⌘K / Ctrl+Alt+K. If another app holds these keys, Settings shows a warning and the rest of the app works as usual. |
+| Shortcut | Off | ⌥⌘K / Ctrl+Alt+K. Off by default because these keys mean something else in some places: Ctrl+Alt+K is AltGr+K on some Windows keyboard layouts, and ⌥⌘K opens Firefox's Web Console. If another app holds these keys, Settings shows a warning and the rest of the app works as usual. |
 | Language | English | English or Vietnamese. |
 
 **Shortcut on Linux.** Global shortcuts need X11. On Wayland they only work in desktops that pass them through to X11 apps, so the tray and window remain the reliable way.

@@ -14,8 +14,8 @@ All notable changes to KeepAwake are listed here. The format follows
 - A notification when the timer runs out and the computer may sleep again. It can be
   turned off in Settings.
 - A keyboard shortcut to switch keep-awake on and off from anywhere: ⌥⌘K on macOS,
-  Ctrl+Alt+K on Windows and Linux. It can be turned off in Settings. If another app
-  already uses it, Settings says so.
+  Ctrl+Alt+K on Windows and Linux. It is off by default; switch it on in Settings.
+  If another app already uses it, Settings says so.
 - Updates: KeepAwake checks GitHub for a new version when it starts and when you open
   Settings. Settings shows "Update available" with an Install button. Nothing is
   installed until you press it, and the download must carry the project's signature.

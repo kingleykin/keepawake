@@ -59,7 +59,9 @@ impl Default for Settings {
             use_custom: false,
             mode: Mode::Display,
             notify_when_done: true,
-            shortcut: true,
+            // Off until asked for: Ctrl+Alt+K is AltGr+K on some Windows keyboard
+            // layouts, and ⌥⌘K opens Firefox's Web Console.
+            shortcut: false,
         }
     }
 }
@@ -124,7 +126,7 @@ mod tests {
             use_custom: true,
             mode: Mode::System,
             notify_when_done: false,
-            shortcut: false,
+            shortcut: true,
         };
         save(&path, &settings).unwrap();
         assert_eq!(load(&path), settings);
@@ -143,7 +145,7 @@ mod tests {
             loaded.notify_when_done,
             "1.0 settings files get the new defaults"
         );
-        assert!(loaded.shortcut);
+        assert!(!loaded.shortcut, "the shortcut stays off until switched on");
 
         for custom in [
             r#"{"kind": "minutes", "minutes": 0}"#,
