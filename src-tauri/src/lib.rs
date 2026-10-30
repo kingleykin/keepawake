@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use chrono::{DateTime, Local, NaiveTime, TimeDelta, TimeZone};
+use chrono::{DateTime, Local, LocalResult, NaiveTime, TimeDelta, TimeZone};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, RunEvent, WindowEvent};
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
@@ -155,15 +155,19 @@ fn next_clock_time<Tz: TimeZone>(now: &DateTime<Tz>, hour: u32, minute: u32) -> 
     let today = now.date_naive();
     for date in today.iter_days().take(3) {
         let local = date.and_time(time);
-        let at = zone
-            .from_local_datetime(&local)
-            .earliest()
+        let candidates = match zone.from_local_datetime(&local) {
+            LocalResult::Single(at) => [Some(at), None],
+            // When the clocks go back this time happens twice, and the second one
+            // may still be ahead even if the first has passed.
+            LocalResult::Ambiguous(first, second) => [Some(first), Some(second)],
             // The clock skips this time when daylight saving starts. Use the hour after.
-            .or_else(|| {
+            LocalResult::None => [
                 zone.from_local_datetime(&(local + TimeDelta::hours(1)))
-                    .earliest()
-            });
-        if let Some(at) = at.filter(|at| at > now) {
+                    .earliest(),
+                None,
+            ],
+        };
+        if let Some(at) = candidates.into_iter().flatten().find(|at| at > now) {
             return at.timestamp_millis() as u64;
         }
     }
@@ -793,6 +797,24 @@ mod tests {
         let night = Berlin.with_ymd_and_hms(2026, 10, 25, 1, 0, 0).unwrap();
         let end = next_clock_time(&night, 2, 30);
         assert_eq!(end, night.timestamp_millis() as u64 + 90 * 60_000);
+
+        // Same night, between the two 02:30s: the second one is still ahead tonight.
+        let first_pass = Berlin
+            .with_ymd_and_hms(2026, 10, 25, 2, 45, 0)
+            .earliest()
+            .unwrap();
+        let end = next_clock_time(&first_pass, 2, 30);
+        assert_eq!(end, first_pass.timestamp_millis() as u64 + 45 * 60_000);
+        // After the second 02:30 has also passed, it is tomorrow's.
+        let second_pass = Berlin
+            .with_ymd_and_hms(2026, 10, 25, 2, 45, 0)
+            .latest()
+            .unwrap();
+        let tomorrow = Berlin.with_ymd_and_hms(2026, 10, 26, 2, 30, 0).unwrap();
+        assert_eq!(
+            next_clock_time(&second_pass, 2, 30),
+            tomorrow.timestamp_millis() as u64
+        );
     }
 
     #[test]
