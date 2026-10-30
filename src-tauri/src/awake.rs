@@ -205,25 +205,44 @@ mod tests {
                 .expect("pmset");
             String::from_utf8_lossy(&out.stdout).into_owned()
         };
-        let mine = |text: &str| text.lines().filter(|l| l.contains(REASON)).count();
+        // Only this test's own assertions count, so a KeepAwake app running on
+        // the same machine does not make the test fail.
+        let me = format!("pid {}(", std::process::id());
+        let mine = || -> Vec<String> {
+            assertions()
+                .lines()
+                .filter(|l| l.contains(&me) && l.contains(REASON))
+                .map(str::to_owned)
+                .collect()
+        };
+        let held_types = |lines: &[String]| -> Vec<&str> {
+            ["PreventUserIdleSystemSleep", "PreventUserIdleDisplaySleep"]
+                .into_iter()
+                .filter(|kind| lines.iter().any(|l| l.contains(kind)))
+                .collect()
+        };
 
         let awake = Awake::spawn();
-        assert_eq!(mine(&assertions()), 0);
+        assert!(mine().is_empty());
 
         awake.acquire(Mode::Display).unwrap();
-        let held = assertions();
-        assert!(held.contains("PreventUserIdleDisplaySleep") && mine(&held) == 2);
+        let held = mine();
+        assert_eq!(held.len(), 2, "{held:?}");
+        assert_eq!(
+            held_types(&held),
+            ["PreventUserIdleSystemSleep", "PreventUserIdleDisplaySleep"]
+        );
 
         awake.acquire(Mode::System).unwrap();
-        let held = assertions();
+        let held = mine();
         assert_eq!(
-            mine(&held),
-            1,
-            "system mode holds only the idle-sleep assertion"
+            held_types(&held),
+            ["PreventUserIdleSystemSleep"],
+            "system mode holds only the idle-sleep assertion: {held:?}"
         );
 
         awake.release();
-        assert_eq!(mine(&assertions()), 0);
+        assert!(mine().is_empty());
     }
 
     /// Checks the real OS request on Windows with `powercfg /requests`, which

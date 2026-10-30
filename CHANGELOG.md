@@ -4,7 +4,7 @@ All notable changes to KeepAwake are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [1.1.0] - 2026-10-26
+## [1.1.0] - 2026-10-30
 
 ### Added
 
@@ -23,6 +23,12 @@ All notable changes to KeepAwake are listed here. The format follows
 ### Fixed
 
 - The Settings page was 8 pixels taller than the window, which cut off the bottom edge.
+
+### Security
+
+- The update plugin is 2.14.1, which uses `zip` 9.1.3 on Windows. Older `zip`
+  versions had parser and extraction flaws (GHSA-m665-v7pm-7grj, GHSA-q7v9-x93c-xqv3,
+  GHSA-8hxf-qr8p-62x4). `tokio` is 1.54.1 (GHSA-5wjr-9356-4wc8).
 
 ## [1.0.1] - 2026-10-21
 
