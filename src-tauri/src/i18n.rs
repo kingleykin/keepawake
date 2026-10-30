@@ -1,6 +1,8 @@
-//! Strings shown by the tray menu. The window has its own copy in `src/i18n.js`.
+//! Strings shown by the tray menu and notifications. The window has its own copy in `src/i18n.js`.
 
 use serde::{Deserialize, Serialize};
+
+use crate::settings::Custom;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -15,6 +17,8 @@ pub enum Text {
     Open,
     Settings,
     Quit,
+    Custom,
+    TimeUp,
 }
 
 pub fn text(lang: Language, key: Text) -> &'static str {
@@ -29,6 +33,10 @@ pub fn text(lang: Language, key: Text) -> &'static str {
         (Vi, Settings) => "Cài đặt…",
         (En, Quit) => "Quit",
         (Vi, Quit) => "Thoát",
+        (En, Custom) => "Custom…",
+        (Vi, Custom) => "Tùy chỉnh…",
+        (En, TimeUp) => "KeepAwake is off, your computer may sleep again",
+        (Vi, TimeUp) => "KeepAwake đã tắt, máy có thể ngủ lại",
     }
 }
 
@@ -36,11 +44,21 @@ pub fn duration(lang: Language, minutes: u32) -> String {
     match (lang, minutes) {
         (Language::En, 0) => "Indefinitely".into(),
         (Language::Vi, 0) => "Vô thời hạn".into(),
+        (Language::En, 1) => "1 minute".into(),
         (Language::En, 60) => "1 hour".into(),
         (Language::En, m) if m % 60 == 0 => format!("{} hours", m / 60),
         (Language::En, m) => format!("{m} minutes"),
         (Language::Vi, m) if m % 60 == 0 => format!("{} giờ", m / 60),
         (Language::Vi, m) => format!("{m} phút"),
+    }
+}
+
+/// A custom time, e.g. "45 minutes" or "Until 18:30".
+pub fn custom(lang: Language, custom: Custom) -> String {
+    match (lang, custom) {
+        (_, Custom::Minutes { minutes }) => duration(lang, minutes),
+        (Language::En, Custom::Until { hour, minute }) => format!("Until {hour:02}:{minute:02}"),
+        (Language::Vi, Custom::Until { hour, minute }) => format!("Đến {hour:02}:{minute:02}"),
     }
 }
 
@@ -90,6 +108,16 @@ mod tests {
         assert_eq!(duration(Language::En, 240), "4 hours");
         assert_eq!(duration(Language::Vi, 120), "2 giờ");
         assert_eq!(duration(Language::Vi, 0), "Vô thời hạn");
+    }
+
+    #[test]
+    fn custom_labels() {
+        let until = Custom::Until { hour: 7, minute: 5 };
+        assert_eq!(custom(Language::En, until), "Until 07:05");
+        assert_eq!(custom(Language::Vi, until), "Đến 07:05");
+        let minutes = Custom::Minutes { minutes: 45 };
+        assert_eq!(custom(Language::En, minutes), "45 minutes");
+        assert_eq!(custom(Language::Vi, minutes), "45 phút");
     }
 
     #[test]

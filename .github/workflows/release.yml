@@ -56,6 +56,9 @@ jobs:
       - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Signs the update files. The app only installs updates signed with this key.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: KeepAwake ${{ github.ref_name }}
@@ -75,13 +78,30 @@ jobs:
           # Publish only after every platform has uploaded its files.
           releaseDraft: true
           prerelease: false
-          args: ${{ matrix.args }}
+          # Release builds also make the signed update files. Local builds skip them.
+          args: ${{ matrix.args }} --config src-tauri/tauri.release.conf.json
+          # latest.json tells installed copies about this release.
+          uploadUpdaterJson: true
+          updaterJsonPreferNsis: true
 
   publish:
     name: Publish release
     needs: build
     runs-on: ubuntu-latest
     steps:
+      # Every platform adds itself to latest.json. Do not publish a release that
+      # would leave one of them without updates.
+      - name: Check latest.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern latest.json
+          cat latest.json
+          for platform in darwin-aarch64 darwin-x86_64 linux-x86_64 windows-x86_64; do
+            jq -e --arg p "$platform" '.platforms[$p].signature | length > 0' latest.json >/dev/null \
+              || { echo "latest.json has no signed update for $platform"; exit 1; }
+          done
+
       - name: Publish the draft
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

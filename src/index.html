@@ -68,12 +68,28 @@
       <input id="close-to-tray" class="switch" type="checkbox" role="switch">
     </label>
     <label class="opt">
+      <span data-i18n="notifyWhenDone"></span>
+      <input id="notify" class="switch" type="checkbox" role="switch">
+    </label>
+    <label class="opt">
+      <span>
+        <span data-i18n="shortcut"></span> <kbd id="shortcut-keys"></kbd>
+        <small id="shortcut-error" class="error-line" hidden></small>
+        <small id="shortcut-note" class="note-line" data-i18n="shortcutWayland" hidden></small>
+      </span>
+      <input id="shortcut" class="switch" type="checkbox" role="switch">
+    </label>
+    <label class="opt">
       <span data-i18n="language"></span>
       <select id="language">
         <option value="en">English</option>
         <option value="vi">Tiếng Việt</option>
       </select>
     </label>
+    <div id="update" class="opt update" hidden>
+      <span id="update-text"></span>
+      <button id="install" class="primary" type="button" data-i18n="install"></button>
+    </div>
     <p id="settings-error" class="error" hidden></p>
 
     <button id="quit" class="danger" type="button" data-i18n="quit"></button>
@@ -83,6 +99,28 @@
       <button id="github" class="link" type="button">GitHub</button>
     </footer>
   </section>
+
+  <div id="picker" class="sheet" hidden>
+    <form id="picker-form" class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="picker-title" novalidate>
+      <h2 id="picker-title" data-i18n="customTitle"></h2>
+      <label class="radio pick">
+        <input type="radio" name="custom-kind" value="minutes">
+        <span data-i18n="customFor"></span>
+        <input id="custom-minutes" class="field" type="number" min="1" max="1440" step="1" inputmode="numeric">
+        <span data-i18n="minutesUnit"></span>
+      </label>
+      <label class="radio pick">
+        <input type="radio" name="custom-kind" value="until">
+        <span data-i18n="customUntil"></span>
+        <input id="custom-until" class="field" type="time">
+      </label>
+      <p id="picker-hint" class="hint"></p>
+      <div class="sheet-actions">
+        <button id="picker-cancel" class="link" type="button" data-i18n="cancel"></button>
+        <button class="primary" type="submit" data-i18n="done"></button>
+      </div>
+    </form>
+  </div>
 
   <script src="i18n.js"></script>
   <script src="main.js"></script>

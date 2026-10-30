@@ -4,6 +4,26 @@ All notable changes to KeepAwake are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-10-26
+
+### Added
+
+- Custom time: pick any number of minutes (up to 24 hours), or "until" a time of day.
+  A time that has already passed today means tomorrow. The tray menu has a
+  "Custom…" item that opens the picker.
+- A notification when the timer runs out and the computer may sleep again. It can be
+  turned off in Settings.
+- A keyboard shortcut to switch keep-awake on and off from anywhere: ⌥⌘K on macOS,
+  Ctrl+Alt+K on Windows and Linux. It is off by default; switch it on in Settings.
+  If another app already uses it, Settings says so.
+- Updates: KeepAwake checks GitHub for a new version when it starts and when you open
+  Settings. Settings shows "Update available" with an Install button. Nothing is
+  installed until you press it, and the download must carry the project's signature.
+
+### Fixed
+
+- The Settings page was 8 pixels taller than the window, which cut off the bottom edge.
+
 ## [1.0.1] - 2026-10-21
 
 ### Fixed
@@ -30,5 +50,6 @@ All notable changes to KeepAwake are listed here. The format follows
 - Light and dark themes that follow the system.
 - Installers for macOS (universal `.dmg`), Windows (`.exe`, `.msi`) and Linux (`.AppImage`, `.deb`, `.rpm`).
 
+[1.1.0]: https://github.com/kingleykin/keepawake/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/kingleykin/keepawake/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/kingleykin/keepawake/releases/tag/v1.0.0

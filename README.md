@@ -26,10 +26,12 @@
 ## Features
 
 - **One click.** Press the big button, or left-click the tray icon on macOS and Windows.
-- **Timer.** 15 min, 30 min, 1 h, 2 h, 4 h, or no limit. It switches itself off when time is up.
+- **Timer.** 15 min, 30 min, 1 h, 2 h, 4 h, no limit, or a custom time: any number of minutes, or "until 18:30". It switches itself off when time is up and tells you with a notification.
+- **Keyboard shortcut.** ⌥⌘K on macOS, Ctrl+Alt+K on Windows and Linux, from any app. Off by default; switch it on in Settings.
 - **Two modes.** Keep the display on, or keep only the system awake and let the screen turn off.
 - **Lives in the tray.** The menu shows the countdown and lets you pick a time, which also switches keep-awake on.
 - **Launch at login.** Starts quietly in the tray.
+- **Updates.** Settings shows when a new version is out. It installs only when you press Install.
 - **English and Vietnamese.** English is the default. Change it in Settings.
 - **Small.** Built with [Tauri](https://tauri.app) and Rust. The installer is a few megabytes.
 - **Honest status.** "Keeping awake" only shows after the operating system has accepted the request. If it refuses, you see the error instead.
@@ -104,6 +106,20 @@ It does **not** stop sleep that you ask for yourself, such as closing a laptop l
 
 **Linux notes.** GNOME and KDE work on both Wayland and X11 through the desktop portal. Minimal Wayland compositors such as Sway or Hyprland may ignore these requests. If nothing accepts the request, KeepAwake shows an error instead of pretending to work. Left-click on the tray icon opens the menu on Linux, because Tauri cannot tell left and right clicks apart there.
 
+## Settings
+
+| Setting | Default | |
+|---|---|---|
+| Launch at login | Off | Starts hidden in the tray. |
+| Close button hides to tray | On | Otherwise closing the window quits. |
+| Notify when time is up | On | One notification when the timer switches keep-awake off. |
+| Shortcut | Off | ⌥⌘K / Ctrl+Alt+K. Off by default because these keys mean something else in some places: Ctrl+Alt+K is AltGr+K on some Windows keyboard layouts, and ⌥⌘K opens Firefox's Web Console. If another app holds these keys, Settings shows a warning and the rest of the app works as usual. |
+| Language | English | English or Vietnamese. |
+
+**Shortcut on Linux.** Global shortcuts need X11. On Wayland they only work in desktops that pass them through to X11 apps, so the tray and window remain the reliable way. Settings shows a note under the switch when it runs on Wayland.
+
+**Updates.** KeepAwake asks GitHub for `latest.json` from the newest release a few seconds after it starts and whenever you open Settings. No other data is sent. An update is only installed after you press **Install**, and only if it is signed with the project's update key. On Linux, updates work for the AppImage, `.deb` and `.rpm` builds; the package builds ask for your password.
+
 ## Build from source
 
 You need [Rust](https://rustup.rs), [Node.js](https://nodejs.org) 18 or newer, and the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your system.
@@ -153,11 +169,13 @@ scripts/             icon rendering
 2. Commit, then tag and push:
 
 ```bash
-git tag v1.0.1
+git tag v1.1.0
 git push origin main --tags
 ```
 
-GitHub Actions builds macOS, Windows and Linux in parallel and publishes the release once all three succeed.
+GitHub Actions builds macOS, Windows and Linux in parallel and publishes the release once all three succeed and `latest.json` lists a signed update for every platform.
+
+Release builds sign the update files with the key in the repository secrets `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. The matching public key is in `src-tauri/tauri.conf.json`. Keep the private key safe: without it, installed copies cannot be updated. `npm run build` does not need the key. To build the signed update files locally, set both variables and run `npm run build -- --config src-tauri/tauri.release.conf.json`.
 
 ## Contributing
 

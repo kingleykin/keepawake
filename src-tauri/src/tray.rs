@@ -13,6 +13,7 @@ pub const MENU_TOGGLE: &str = "toggle";
 pub const MENU_OPEN: &str = "open";
 pub const MENU_SETTINGS: &str = "settings";
 pub const MENU_QUIT: &str = "quit";
+pub const MENU_CUSTOM: &str = "custom";
 pub const MENU_DURATION_PREFIX: &str = "duration:";
 
 // macOS draws monochrome "template" icons that follow the menu bar colour.
@@ -31,6 +32,7 @@ struct Items {
     status: MenuItem<Wry>,
     toggle: CheckMenuItem<Wry>,
     durations: Vec<(u32, CheckMenuItem<Wry>)>,
+    custom: CheckMenuItem<Wry>,
 }
 
 pub struct Tray {
@@ -68,6 +70,15 @@ fn build_items(app: &AppHandle, lang: Language) -> tauri::Result<Items> {
             .map(|item| (minutes, item))
         })
         .collect::<tauri::Result<Vec<_>>>()?;
+    // Opens the time picker in the window, which a menu cannot hold.
+    let custom = CheckMenuItem::with_id(
+        app,
+        MENU_CUSTOM,
+        i18n::text(lang, Text::Custom),
+        true,
+        false,
+        None::<&str>,
+    )?;
     let open = MenuItem::with_id(
         app,
         MENU_OPEN,
@@ -98,6 +109,7 @@ fn build_items(app: &AppHandle, lang: Language) -> tauri::Result<Items> {
     for (_, item) in &durations {
         menu.append(item)?;
     }
+    menu.append(&custom)?;
     menu.append_items(&[
         &PredefinedMenuItem::separator(app)?,
         &open,
@@ -111,6 +123,7 @@ fn build_items(app: &AppHandle, lang: Language) -> tauri::Result<Items> {
         status,
         toggle,
         durations,
+        custom,
     })
 }
 
@@ -170,8 +183,14 @@ impl Tray {
         let _ = self.icon.set_tooltip(Some(&status));
         let _ = self.items.toggle.set_checked(snap.active);
         for (minutes, item) in &self.items.durations {
-            let _ = item.set_checked(*minutes == snap.duration_min);
+            let _ = item.set_checked(!snap.use_custom && *minutes == snap.duration_min);
         }
+        let custom = match snap.custom {
+            Some(custom) if snap.use_custom => format!("{}…", i18n::custom(snap.language, custom)),
+            _ => i18n::text(snap.language, Text::Custom).into(),
+        };
+        let _ = self.items.custom.set_text(&custom);
+        let _ = self.items.custom.set_checked(snap.use_custom);
 
         if self.shown_active != Some(snap.active) {
             if let Ok(image) = icon(snap.active) {
