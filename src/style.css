@@ -271,6 +271,7 @@ kbd {
   font-size: 11px;
 }
 .error-line { display: block; color: var(--danger); font-size: 11px; }
+.note-line { display: block; color: var(--muted); font-size: 11px; }
 .update span { font-weight: 600; }
 
 select {

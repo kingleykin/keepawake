@@ -116,7 +116,7 @@ It does **not** stop sleep that you ask for yourself, such as closing a laptop l
 | Shortcut | Off | ⌥⌘K / Ctrl+Alt+K. Off by default because these keys mean something else in some places: Ctrl+Alt+K is AltGr+K on some Windows keyboard layouts, and ⌥⌘K opens Firefox's Web Console. If another app holds these keys, Settings shows a warning and the rest of the app works as usual. |
 | Language | English | English or Vietnamese. |
 
-**Shortcut on Linux.** Global shortcuts need X11. On Wayland they only work in desktops that pass them through to X11 apps, so the tray and window remain the reliable way.
+**Shortcut on Linux.** Global shortcuts need X11. On Wayland they only work in desktops that pass them through to X11 apps, so the tray and window remain the reliable way. Settings shows a note under the switch when it runs on Wayland.
 
 **Updates.** KeepAwake asks GitHub for `latest.json` from the newest release a few seconds after it starts and whenever you open Settings. No other data is sent. An update is only installed after you press **Install**, and only if it is signed with the project's update key. On Linux, updates work for the AppImage, `.deb` and `.rpm` builds; the package builds ask for your password.
 

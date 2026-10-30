@@ -25,6 +25,7 @@
     shortcut: $("shortcut"),
     shortcutKeys: $("shortcut-keys"),
     shortcutError: $("shortcut-error"),
+    shortcutNote: $("shortcut-note"),
     openSettings: $("open-settings"),
     update: $("update"),
     updateText: $("update-text"),
@@ -115,6 +116,7 @@
     el.shortcutError.hidden = !(state.shortcut && state.shortcutError);
     el.shortcutError.textContent = fill(t.shortcutTaken, { k: SHORTCUT_KEYS });
     el.shortcutError.title = state.shortcutError || "";
+    el.shortcutNote.hidden = !state.shortcutMayFail;
     el.update.hidden = !state.update;
     el.updateText.textContent = state.update ? fill(t.updateAvailable, { v: state.update }) : "";
     el.install.textContent = installing ? t.installing : t.install;

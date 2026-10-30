@@ -110,7 +110,7 @@ App **không** chặn việc bạn chủ động cho máy ngủ, ví dụ gập 
 | Phím tắt | Tắt | ⌥⌘K / Ctrl+Alt+K. Mặc định tắt vì tổ hợp này có nghĩa khác ở một số nơi: Ctrl+Alt+K là AltGr+K trên một số bàn phím Windows, còn ⌥⌘K mở Web Console của Firefox. Nếu ứng dụng khác đã dùng tổ hợp này, Cài đặt sẽ báo và app vẫn chạy bình thường. |
 | Ngôn ngữ | Tiếng Anh | Tiếng Anh hoặc tiếng Việt. |
 
-**Phím tắt trên Linux.** Phím tắt toàn cục cần X11. Trên Wayland chỉ chạy ở desktop có chuyển phím tắt cho app X11, nên khay và cửa sổ vẫn là cách chắc chắn nhất.
+**Phím tắt trên Linux.** Phím tắt toàn cục cần X11. Trên Wayland chỉ chạy ở desktop có chuyển phím tắt cho app X11, nên khay và cửa sổ vẫn là cách chắc chắn nhất. Khi chạy trên Wayland, Cài đặt sẽ hiện ghi chú dưới công tắc này.
 
 **Cập nhật.** Vài giây sau khi mở và mỗi lần mở Cài đặt, KeepAwake tải file `latest.json` của bản phát hành mới nhất trên GitHub. Không gửi dữ liệu nào khác. Bản mới chỉ được cài sau khi bạn bấm **Cập nhật**, và chỉ khi có chữ ký bằng khóa cập nhật của dự án. Trên Linux, bản AppImage, `.deb` và `.rpm` đều cập nhật được; bản `.deb` và `.rpm` sẽ hỏi mật khẩu.
 

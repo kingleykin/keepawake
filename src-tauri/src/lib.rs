@@ -110,6 +110,8 @@ pub struct Snapshot {
     pub notify_when_done: bool,
     pub shortcut: bool,
     pub shortcut_error: Option<String>,
+    /// Global shortcuts may never fire here, although registering them succeeds.
+    pub shortcut_may_fail: bool,
     /// Version of a newer release, if one was found.
     pub update: Option<String>,
 }
@@ -124,6 +126,12 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+/// Global shortcuts on Linux go through X11. A Wayland session accepts them
+/// and then usually never delivers the key press.
+fn on_wayland() -> bool {
+    cfg!(target_os = "linux") && std::env::var_os("WAYLAND_DISPLAY").is_some()
 }
 
 /// Wall-clock time, so a timer still ends on schedule after the machine sleeps.
@@ -201,6 +209,7 @@ fn snapshot(app: &AppHandle) -> Snapshot {
         notify_when_done: settings.notify_when_done,
         shortcut: settings.shortcut,
         shortcut_error,
+        shortcut_may_fail: on_wayland(),
         update,
     };
     drop(session);
