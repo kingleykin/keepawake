@@ -423,6 +423,9 @@ pub(crate) fn on_menu(app: &AppHandle, id: &str) {
             let _ = app.emit(EVENT_SHOW_SETTINGS, ());
         }
         tray::MENU_CUSTOM => {
+            // The menu ticks a check item when it is clicked. Put the tick back
+            // until a time is actually picked.
+            refresh_tray(app, snapshot(app));
             show_window(app);
             let _ = app.emit(EVENT_SHOW_CUSTOM, ());
         }
