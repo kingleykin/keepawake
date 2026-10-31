@@ -18,10 +18,17 @@
 <p align="center"><a href="README.vi.md">Tiếng Việt</a></p>
 
 <p align="center">
+  <img src="docs/demo.gif" width="640" alt="Picking 30 minutes, switching KeepAwake on, then setting it to keep awake until 18:30. The tray icon turns green while it is on.">
+</p>
+
+<details>
+<summary>More screenshots</summary>
+<p align="center">
   <img src="docs/screenshots/on-dark.png" width="240" alt="KeepAwake keeping the computer awake, dark theme">
   <img src="docs/screenshots/off-light.png" width="240" alt="KeepAwake switched off, light theme">
   <img src="docs/screenshots/settings-vi.png" width="240" alt="Settings in Vietnamese">
 </p>
+</details>
 
 ## Features
 
@@ -96,7 +103,7 @@ Plain GNOME hides tray icons. Install the [AppIndicator extension](https://exten
 
 KeepAwake stops the computer from going to sleep **because nobody is using it**. In "Keep display on" mode it also stops the screen from turning off.
 
-It does **not** stop sleep that you ask for yourself, such as closing a laptop lid or choosing Sleep from a menu.
+It does **not** stop sleep that you ask for yourself, such as closing a laptop lid or choosing Sleep from a menu. See [What happens when I close the lid?](#what-happens-when-i-close-the-lid)
 
 | System | How it works | Check it |
 |---|---|---|
@@ -105,6 +112,34 @@ It does **not** stop sleep that you ask for yourself, such as closing a laptop l
 | Linux | XDG desktop portal `Inhibit` first. Falls back to `org.freedesktop.ScreenSaver` and systemd-logind | `systemd-inhibit --list` |
 
 **Linux notes.** GNOME and KDE work on both Wayland and X11 through the desktop portal. Minimal Wayland compositors such as Sway or Hyprland may ignore these requests. If nothing accepts the request, KeepAwake shows an error instead of pretending to work. Left-click on the tray icon opens the menu on Linux, because Tauri cannot tell left and right clicks apart there.
+
+## FAQ
+
+### What happens when I close the lid?
+
+On macOS and Windows, the laptop goes to sleep as usual. These systems do not let an ordinary app block it, so a laptop in a bag does not stay on and overheat. KeepAwake does not touch the lid setting on Linux either, but some Linux desktops may treat its request as a reason not to sleep. If yours stays awake with the lid closed, switch KeepAwake off before you pack the laptop away.
+
+When you open the lid again, KeepAwake is still on and keeps working. The timer counts real time, so time spent asleep counts too. If the timer ran out while the laptop slept, KeepAwake switches off right after it wakes, with a notification if you have them on.
+
+To keep a laptop running with the lid closed, change your system's lid setting:
+
+- **macOS:** use closed-display mode (clamshell mode): connect power, an external display, and a keyboard or mouse, then close the lid.
+- **Windows:** Control Panel → Hardware and Sound → Power Options → **Choose what closing the lid does** → **Do nothing**.
+- **Linux:** create `/etc/systemd/logind.conf.d/lid.conf` with the two lines `[Login]` and `HandleLidSwitch=ignore`, then restart.
+
+Remember to switch it back if you carry the laptop in a bag.
+
+### Does KeepAwake change my power settings?
+
+No. It only holds a request while it is on. When you switch it off or quit, the request is gone. If the app crashes, the operating system drops the request by itself.
+
+### Why does my system warn me the first time I open it?
+
+The builds are not code-signed yet. See [Install](#install) for the one-time steps.
+
+### Does it collect any data?
+
+No. KeepAwake only goes online to check for updates, by downloading `latest.json` from this repository's releases, and to download an update after you press **Install**.
 
 ## Settings
 
@@ -160,6 +195,7 @@ src-tauri/src/
   i18n.rs            tray menu text in English and Vietnamese
   lib.rs             state, timer, commands
 scripts/             icon rendering
+packaging/           Homebrew, winget and AUR files
 .github/workflows/   CI and release builds
 ```
 

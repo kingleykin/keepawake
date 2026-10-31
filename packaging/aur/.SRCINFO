@@ -1,0 +1,21 @@
+pkgbase = keepawake-app-bin
+	pkgdesc = Keep your computer awake. One click, from the tray.
+	pkgver = 1.1.0
+	pkgrel = 1
+	url = https://github.com/kingleykin/keepawake
+	arch = x86_64
+	license = MIT
+	depends = gtk3
+	depends = webkit2gtk-4.1
+	depends = libayatana-appindicator
+	provides = keepawake-app
+	conflicts = keepawake-app
+	noextract = keepawake-app-bin-1.1.0.deb
+	options = !strip
+	options = !debug
+	source = keepawake-app-bin-1.1.0.deb::https://github.com/kingleykin/keepawake/releases/download/v1.1.0/KeepAwake_1.1.0_amd64.deb
+	source = LICENSE-1.1.0::https://raw.githubusercontent.com/kingleykin/keepawake/v1.1.0/LICENSE
+	sha256sums = 2a755399888be1c3227f8b3b7572eb356404646533822290e07fbe8303eae1c9
+	sha256sums = 3e9ddba7b2f760b7bb169a894adf0ec8a66ca70a9ae69661c72867296ec2e891
+
+pkgname = keepawake-app-bin
