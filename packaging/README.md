@@ -10,7 +10,7 @@ gh api repos/kingleykin/keepawake/releases/tags/v1.1.0 --jq '.assets[] | .name +
 
 ## Homebrew (macOS)
 
-`homebrew/keepawake.rb` is a cask for our own tap, the repository `kingleykin/homebrew-tap`. Copy it to `Casks/keepawake.rb` there. Users then install with:
+`homebrew/keepawake.rb` is the cask in our own tap, [kingleykin/homebrew-tap](https://github.com/kingleykin/homebrew-tap). After a release, update it here and copy it to `Casks/keepawake.rb` there. Users then install with:
 
 ```bash
 brew install --cask kingleykin/tap/keepawake

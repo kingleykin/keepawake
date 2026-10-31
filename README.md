@@ -59,11 +59,19 @@ Download the file for your system from the **[latest release](https://github.com
 
 ### macOS
 
+With [Homebrew](https://brew.sh):
+
+```bash
+brew install --cask kingleykin/tap/keepawake
+```
+
+Or by hand:
+
 1. Open the `.dmg` and drag **KeepAwake** into **Applications**.
 2. Open KeepAwake. macOS says it cannot verify the developer. Click **Done**.
 3. Open **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** next to KeepAwake.
 
-Or run this once in Terminal instead of steps 2 and 3:
+Or run this once in Terminal instead of steps 2 and 3. Homebrew users need it too if macOS refuses to open the app:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/KeepAwake.app

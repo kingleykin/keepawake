@@ -53,11 +53,19 @@ Tải file theo hệ điều hành ở **[bản phát hành mới nhất](https:
 
 ### macOS
 
+Cài bằng [Homebrew](https://brew.sh):
+
+```bash
+brew install --cask kingleykin/tap/keepawake
+```
+
+Hoặc cài tay:
+
 1. Mở file `.dmg`, kéo **KeepAwake** vào **Applications**.
 2. Mở KeepAwake. macOS báo không xác minh được nhà phát triển. Bấm **Done**.
 3. Mở **System Settings → Privacy & Security**, kéo xuống, bấm **Open Anyway** cạnh KeepAwake.
 
-Hoặc chạy lệnh này một lần trong Terminal thay cho bước 2 và 3:
+Hoặc chạy lệnh này một lần trong Terminal thay cho bước 2 và 3. Nếu cài bằng Homebrew mà macOS không cho mở app, bạn cũng chạy lệnh này:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/KeepAwake.app
