@@ -12,10 +12,17 @@
 <p align="center"><a href="README.md">English</a></p>
 
 <p align="center">
+  <img src="docs/demo.gif" width="640" alt="Chọn 30 phút, bật KeepAwake, rồi đặt giữ thức đến 18:30. Icon trên khay chuyển sang màu xanh khi đang bật.">
+</p>
+
+<details>
+<summary>Thêm ảnh chụp màn hình</summary>
+<p align="center">
   <img src="docs/screenshots/on-dark.png" width="240" alt="KeepAwake đang giữ thức, giao diện tối">
   <img src="docs/screenshots/off-light.png" width="240" alt="KeepAwake đang tắt, giao diện sáng">
   <img src="docs/screenshots/settings-vi.png" width="240" alt="Màn cài đặt tiếng Việt">
 </p>
+</details>
 
 ## Chức năng
 
@@ -90,7 +97,7 @@ GNOME gốc ẩn icon khay. Cài [AppIndicator extension](https://extensions.gno
 
 KeepAwake chặn máy tự ngủ **khi không có ai dùng**. Ở chế độ "Giữ cả màn hình", màn hình cũng không tự tắt.
 
-App **không** chặn việc bạn chủ động cho máy ngủ, ví dụ gập laptop hoặc chọn Sleep trong menu.
+App **không** chặn việc bạn chủ động cho máy ngủ, ví dụ gập laptop hoặc chọn Sleep trong menu. Xem [Gập máy thì sao?](#gập-máy-thì-sao)
 
 | Hệ điều hành | Cách hoạt động | Kiểm tra |
 |---|---|---|
@@ -99,6 +106,34 @@ App **không** chặn việc bạn chủ động cho máy ngủ, ví dụ gập 
 | Linux | Thử XDG desktop portal `Inhibit` trước, sau đó `org.freedesktop.ScreenSaver` và systemd-logind | `systemd-inhibit --list` |
 
 **Lưu ý trên Linux.** GNOME và KDE hoạt động trên cả Wayland và X11 qua desktop portal. Một số compositor Wayland tối giản như Sway, Hyprland có thể bỏ qua yêu cầu này. Nếu không có dịch vụ nào chấp nhận, app hiện lỗi thay vì giả vờ đang chạy. Trên Linux, click trái vào icon khay sẽ mở menu.
+
+## Câu hỏi thường gặp
+
+### Gập máy thì sao?
+
+Máy vẫn ngủ như bình thường. Hệ điều hành không cho app thông thường chặn việc này, để laptop nằm trong balo không bị chạy và nóng lên.
+
+Khi mở máy lại, KeepAwake vẫn bật và tiếp tục giữ thức. Hẹn giờ tính theo giờ thật, nên thời gian máy ngủ cũng được tính. Nếu đã hết giờ trong lúc máy ngủ, app tự tắt ngay sau khi máy thức dậy, kèm thông báo nếu bạn bật thông báo.
+
+Muốn gập máy mà máy vẫn chạy, hãy đổi cài đặt gập máy của hệ điều hành:
+
+- **macOS:** dùng chế độ màn hình gập (clamshell): cắm sạc, nối màn hình ngoài và bàn phím hoặc chuột, rồi gập máy.
+- **Windows:** Control Panel → Hardware and Sound → Power Options → **Choose what closing the lid does** → **Do nothing**.
+- **Linux:** đặt `HandleLidSwitch=ignore` trong `/etc/systemd/logind.conf` rồi khởi động lại. Trên GNOME có thể chỉnh trong GNOME Tweaks.
+
+Nhớ đổi lại khi bỏ laptop vào balo.
+
+### KeepAwake có đổi cài đặt nguồn của máy không?
+
+Không. App chỉ giữ một yêu cầu trong lúc đang bật. Khi tắt hoặc thoát app, yêu cầu đó mất. Nếu app bị lỗi và đóng đột ngột, hệ điều hành cũng tự bỏ yêu cầu đó.
+
+### Vì sao lần đầu mở app máy lại cảnh báo?
+
+App chưa được ký số. Xem phần [Cài đặt](#cài-đặt) để làm các bước cần thiết một lần.
+
+### App có thu thập dữ liệu không?
+
+Không. App chỉ kết nối mạng để kiểm tra bản mới (tải file `latest.json` từ mục Releases của repo này) và để tải bản cập nhật sau khi bạn bấm **Cập nhật**.
 
 ## Cài đặt trong app
 
