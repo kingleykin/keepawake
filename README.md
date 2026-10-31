@@ -117,7 +117,7 @@ It does **not** stop sleep that you ask for yourself, such as closing a laptop l
 
 ### What happens when I close the lid?
 
-The laptop goes to sleep, as usual. Operating systems do not let an ordinary app block this, so a laptop in a bag does not stay on and overheat.
+On macOS and Windows, the laptop goes to sleep as usual. These systems do not let an ordinary app block it, so a laptop in a bag does not stay on and overheat. KeepAwake does not touch the lid setting on Linux either, but some Linux desktops may treat its request as a reason not to sleep. If yours stays awake with the lid closed, switch KeepAwake off before you pack the laptop away.
 
 When you open the lid again, KeepAwake is still on and keeps working. The timer counts real time, so time spent asleep counts too. If the timer ran out while the laptop slept, KeepAwake switches off right after it wakes, with a notification if you have them on.
 
@@ -125,7 +125,7 @@ To keep a laptop running with the lid closed, change your system's lid setting:
 
 - **macOS:** use closed-display mode (clamshell mode): connect power, an external display, and a keyboard or mouse, then close the lid.
 - **Windows:** Control Panel → Hardware and Sound → Power Options → **Choose what closing the lid does** → **Do nothing**.
-- **Linux:** set `HandleLidSwitch=ignore` in `/etc/systemd/logind.conf` and restart. On GNOME, GNOME Tweaks has a switch for this too.
+- **Linux:** create `/etc/systemd/logind.conf.d/lid.conf` with the two lines `[Login]` and `HandleLidSwitch=ignore`, then restart.
 
 Remember to switch it back if you carry the laptop in a bag.
 

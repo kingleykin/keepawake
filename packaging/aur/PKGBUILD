@@ -19,6 +19,7 @@ source=("$pkgname-$pkgver.deb::$url/releases/download/v$pkgver/KeepAwake_${pkgve
 sha256sums=('2a755399888be1c3227f8b3b7572eb356404646533822290e07fbe8303eae1c9'
             '3e9ddba7b2f760b7bb169a894adf0ec8a66ca70a9ae69661c72867296ec2e891')
 noextract=("$pkgname-$pkgver.deb")
+options=('!strip' '!debug')
 
 package() {
   bsdtar -xOf "$pkgname-$pkgver.deb" 'data.tar.*' | bsdtar -xf - -C "$pkgdir"

@@ -111,7 +111,7 @@ App **không** chặn việc bạn chủ động cho máy ngủ, ví dụ gập 
 
 ### Gập máy thì sao?
 
-Máy vẫn ngủ như bình thường. Hệ điều hành không cho app thông thường chặn việc này, để laptop nằm trong balo không bị chạy và nóng lên.
+Trên macOS và Windows, máy vẫn ngủ như bình thường. Hai hệ điều hành này không cho app thông thường chặn việc đó, để laptop nằm trong balo không bị chạy và nóng lên. Trên Linux, KeepAwake cũng không đụng tới cài đặt gập máy, nhưng một số môi trường desktop có thể coi yêu cầu của app là lý do để không ngủ. Nếu máy bạn vẫn chạy khi gập, hãy tắt KeepAwake trước khi bỏ máy vào balo.
 
 Khi mở máy lại, KeepAwake vẫn bật và tiếp tục giữ thức. Hẹn giờ tính theo giờ thật, nên thời gian máy ngủ cũng được tính. Nếu đã hết giờ trong lúc máy ngủ, app tự tắt ngay sau khi máy thức dậy, kèm thông báo nếu bạn bật thông báo.
 
@@ -119,7 +119,7 @@ Muốn gập máy mà máy vẫn chạy, hãy đổi cài đặt gập máy củ
 
 - **macOS:** dùng chế độ màn hình gập (clamshell): cắm sạc, nối màn hình ngoài và bàn phím hoặc chuột, rồi gập máy.
 - **Windows:** Control Panel → Hardware and Sound → Power Options → **Choose what closing the lid does** → **Do nothing**.
-- **Linux:** đặt `HandleLidSwitch=ignore` trong `/etc/systemd/logind.conf` rồi khởi động lại. Trên GNOME có thể chỉnh trong GNOME Tweaks.
+- **Linux:** tạo file `/etc/systemd/logind.conf.d/lid.conf` gồm hai dòng `[Login]` và `HandleLidSwitch=ignore`, rồi khởi động lại máy.
 
 Nhớ đổi lại khi bỏ laptop vào balo.
 
