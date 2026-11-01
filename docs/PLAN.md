@@ -269,3 +269,5 @@ Những điểm khác so với kế hoạch ban đầu, quyết định trong l�
 | Giao diện | Title bar gốc của hệ điều hành, cửa sổ 320×460. Ảnh thật nằm ở `docs/screenshots/`. `ui-mockup.html` là bản thiết kế trước review. |
 
 Đã kiểm tra trên macOS (Apple Silicon): bật/tắt, đổi chế độ, đổi thời gian, đổi ngôn ngữ và tự tắt khi hết giờ, đối chiếu với `pmset -g assertions`. Windows và Linux được build và kiểm tra tự động trên GitHub Actions, chưa thử tay trên máy thật.
+
+Cập nhật 31/10/2026: bản Windows v1.1.0 đã được cài và dùng thử trên máy Windows thật, hoạt động bình thường. Mục Installed apps hiện đúng nhà phát hành "KeepAwake contributors". Linux vẫn chưa thử tay, nhất là việc gập máy trên GNOME.
