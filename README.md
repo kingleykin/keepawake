@@ -204,6 +204,7 @@ src-tauri/src/
   lib.rs             state, timer, commands
 scripts/             icon rendering
 packaging/           Homebrew, winget and AUR files
+site/                website: one static page, deployed by Vercel (vercel.json, scripts/build-site.sh)
 .github/workflows/   CI and release builds
 ```
 
