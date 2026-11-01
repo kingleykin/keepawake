@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KeepAwake – keep your computer awake</title>
+  <meta name="description" content="Free, open-source app that stops your computer from going to sleep. One click, from a tiny window or the tray. macOS, Windows and Linux.">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="KeepAwake – keep your computer awake">
+  <meta property="og:description" content="Free, open-source app that stops your computer from going to sleep. macOS, Windows and Linux.">
+  <meta property="og:image" content="https://raw.githubusercontent.com/kingleykin/keepawake/main/docs/social-preview.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="stylesheet" href="style.css">
+  <script src="main.js" defer></script>
+</head>
+<body>
+  <header class="nav wrap">
+    <a class="brand" href="#top"><img src="icon.svg" width="28" height="28" alt=""> KeepAwake</a>
+    <nav>
+      <button id="lang" class="link" type="button" lang="vi">Tiếng Việt</button>
+      <a href="https://github.com/kingleykin/keepawake">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero wrap">
+      <img class="logo" src="icon.svg" width="88" height="88" alt="">
+      <h1 data-i18n="title">Keep your computer awake.</h1>
+      <p class="lead" data-i18n="lead">One click, from a tiny window or the tray. Free and open source, for macOS, Windows and Linux.</p>
+      <div class="download">
+        <a id="dl" class="btn" href="https://github.com/kingleykin/keepawake/releases/latest" data-i18n="dl">Download</a>
+        <p id="dl-meta" class="muted" data-i18n="dlMeta">Free · macOS, Windows and Linux</p>
+        <p class="muted small"><a href="#install" data-i18n="dlOther">Other systems and Homebrew</a></p>
+      </div>
+      <figure class="demo">
+        <img src="demo.gif" width="640" height="548" alt="Picking 30 minutes, switching KeepAwake on, then setting it to keep awake until 18:30. The tray icon turns green while it is on." data-i18n-alt="demoAlt">
+        <canvas role="img" width="640" height="548" hidden></canvas>
+        <button id="demo-toggle" type="button" aria-pressed="false" hidden>Pause</button>
+      </figure>
+    </section>
+
+    <section class="wrap" aria-labelledby="features-title">
+      <h2 id="features-title" data-i18n="featuresTitle">What it does</h2>
+      <ul class="features">
+        <li><strong data-i18n="f1t">One click</strong><span data-i18n="f1">Press the big button, or click the tray icon on macOS and Windows. The icon turns green while it is on.</span></li>
+        <li><strong data-i18n="f2t">Timer</strong><span data-i18n="f2">15 minutes to 4 hours, no limit, any number of minutes, or until a clock time such as 18:30.</span></li>
+        <li><strong data-i18n="f3t">Two modes</strong><span data-i18n="f3">Keep the display on, or keep only the system awake and let the screen turn off.</span></li>
+        <li><strong data-i18n="f4t">Keyboard shortcut</strong><span data-i18n="f4">Optional ⌥⌘K on macOS or Ctrl+Alt+K on Windows and Linux. Switch it on in Settings. On Linux it needs X11.</span></li>
+        <li><strong data-i18n="f5t">Stays out of the way</strong><span data-i18n="f5">Lives in the tray, starts at login if you want, and tells you when time is up.</span></li>
+        <li><strong data-i18n="f6t">Small and private</strong><span data-i18n="f6">A few megabytes, built with Rust. No account, no tracking, and it never changes your power settings.</span></li>
+      </ul>
+    </section>
+
+    <section id="install" class="wrap" aria-labelledby="install-title">
+      <h2 id="install-title" data-i18n="installTitle">Install</h2>
+      <div class="tabs" role="tablist" aria-labelledby="install-title" hidden>
+        <button type="button" role="tab" id="tab-mac" aria-controls="pane-mac" aria-selected="true">macOS</button>
+        <button type="button" role="tab" id="tab-win" aria-controls="pane-win" aria-selected="false" tabindex="-1">Windows</button>
+        <button type="button" role="tab" id="tab-linux" aria-controls="pane-linux" aria-selected="false" tabindex="-1">Linux</button>
+      </div>
+
+      <div class="pane" role="tabpanel" id="pane-mac" aria-labelledby="tab-mac" tabindex="0">
+        <h3 class="pane-title">macOS</h3>
+        <p data-i18n="macBrew">With Homebrew:</p>
+        <pre><code>brew install --cask kingleykin/tap/keepawake</code></pre>
+        <p data-i18n-html="macDmg">Or download the <a class="asset" data-asset="mac" href="https://github.com/kingleykin/keepawake/releases/latest">.dmg</a> (macOS 10.15 or later, Apple Silicon and Intel) and drag KeepAwake into Applications.</p>
+        <p class="note" data-i18n-html="macNote">The app is not notarized by Apple yet, so macOS stops it the first time. Open <b>System Settings → Privacy &amp; Security</b> and click <b>Open Anyway</b>, or run this once:</p>
+        <pre><code>xattr -dr com.apple.quarantine /Applications/KeepAwake.app</code></pre>
+      </div>
+
+      <div class="pane" role="tabpanel" id="pane-win" aria-labelledby="tab-win" tabindex="0">
+        <h3 class="pane-title">Windows</h3>
+        <p data-i18n-html="winExe">Download the <a class="asset" data-asset="win" href="https://github.com/kingleykin/keepawake/releases/latest">installer</a> for Windows 10 or 11 and run it. It installs for your user only and does not need admin rights.</p>
+        <p class="note" data-i18n-html="winNote">The installer is not code-signed yet. If SmartScreen says “Windows protected your PC”, click <b>More info → Run anyway</b>.</p>
+      </div>
+
+      <div class="pane" role="tabpanel" id="pane-linux" aria-labelledby="tab-linux" tabindex="0">
+        <h3 class="pane-title">Linux</h3>
+        <p data-i18n-html="linuxFiles">Download the <a class="asset" data-asset="appimage" href="https://github.com/kingleykin/keepawake/releases/latest">AppImage</a> for any distro, the <a class="asset" data-asset="deb" href="https://github.com/kingleykin/keepawake/releases/latest">.deb</a> for Debian and Ubuntu, or the <a class="asset" data-asset="rpm" href="https://github.com/kingleykin/keepawake/releases/latest">.rpm</a> for Fedora and openSUSE. All are x86_64.</p>
+        <pre><code>chmod +x KeepAwake_*_amd64.AppImage
+./KeepAwake_*_amd64.AppImage</code></pre>
+        <p class="note" data-i18n-html="linuxNote">Plain GNOME hides tray icons. Install the <a href="https://extensions.gnome.org/extension/615/appindicator-support/">AppIndicator extension</a> to see KeepAwake there. Ubuntu ships it already.</p>
+      </div>
+    </section>
+
+    <section class="wrap" aria-labelledby="faq-title">
+      <h2 id="faq-title" data-i18n="faqTitle">Questions</h2>
+      <details>
+        <summary data-i18n="q1">What happens when I close the lid?</summary>
+        <p data-i18n="a1">On macOS and Windows the laptop goes to sleep as usual, so it does not overheat in a bag. KeepAwake only stops sleep caused by nobody using the computer. When you open the lid, it is still on, and the timer has kept counting.</p>
+      </details>
+      <details>
+        <summary data-i18n="q2">Does it change my power settings?</summary>
+        <p data-i18n="a2">No. It holds a request while it is on. When you switch it off or quit, the request is gone. If the app crashes, the system drops the request by itself.</p>
+      </details>
+      <details>
+        <summary data-i18n="q3">Why does my system warn me the first time?</summary>
+        <p data-i18n="a3">The builds are not code-signed yet, because signing certificates cost money. The steps under Install are needed only once.</p>
+      </details>
+      <details>
+        <summary data-i18n="q4">Does it collect any data?</summary>
+        <p data-i18n="a4">No. It only goes online to check GitHub for a new version, and to download it after you press Install.</p>
+      </details>
+    </section>
+  </main>
+
+  <footer class="wrap muted small">
+    <p data-i18n-html="footer">MIT License · <a href="https://github.com/kingleykin/keepawake">Source on GitHub</a> · Built with <a href="https://tauri.app">Tauri</a> and Rust</p>
+  </footer>
+</body>
+</html>
