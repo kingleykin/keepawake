@@ -50,7 +50,7 @@ const VI = {
   q3: "Vì sao lần đầu mở app máy lại cảnh báo?",
   a3: "Các bản build chưa được ký số vì chứng chỉ ký tốn phí. Các bước trong phần Cài đặt chỉ cần làm một lần.",
   q4: "App có thu thập dữ liệu không?",
-  a4: "Không. App chỉ kết nối mạng để hỏi GitHub có bản mới không, và để tải bản đó về sau khi bạn bấm Cài đặt.",
+  a4: "Không. App chỉ kết nối mạng để hỏi GitHub có bản mới không, và để tải bản đó về sau khi bạn bấm Cài đặt. Riêng trang web này đếm lượt xem ẩn danh bằng Vercel Web Analytics, không dùng cookie.",
   footer: 'Giấy phép MIT · <a href="https://github.com/kingleykin/keepawake">Mã nguồn trên GitHub</a> · Làm bằng <a href="https://tauri.app">Tauri</a> và Rust',
 };
 
