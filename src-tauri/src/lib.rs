@@ -97,6 +97,28 @@ impl Session {
         }
     }
 
+    /// Switch off if session `generation` is still the running one and its timer
+    /// has run out. Returns whether it did.
+    fn expire(&mut self, generation: u64, now: u64) -> bool {
+        if !self.time_is_up(generation, now) {
+            return false;
+        }
+        *self = self.stopped();
+        true
+    }
+
+    /// Add up to 15 minutes to a running timer. Returns whether anything was added.
+    fn extend(&mut self, now: u64) -> bool {
+        let extended = self
+            .countdown
+            .filter(|_| self.active)
+            .and_then(|c| c.extended(now, EXTEND_MS));
+        if extended.is_some() {
+            self.countdown = extended;
+        }
+        extended.is_some()
+    }
+
     /// Whether session `generation` is still the running one and its timer has run out.
     fn time_is_up(&self, generation: u64, now: u64) -> bool {
         self.active
@@ -289,13 +311,16 @@ fn snapshot(app: &AppHandle) -> Snapshot {
 fn publish(app: &AppHandle) -> Snapshot {
     let snap = snapshot(app);
     let _ = app.emit(EVENT_STATE, &snap);
-    refresh_tray(app, snap.clone());
+    refresh_tray(app);
     snap
 }
 
-fn refresh_tray(app: &AppHandle, snap: Snapshot) {
+/// Bring the tray up to date. It reads the state when the main thread gets to
+/// it, so a snapshot taken earlier on another thread can never overwrite a newer one.
+fn refresh_tray(app: &AppHandle) {
     let handle = app.clone();
     let _ = app.run_on_main_thread(move || {
+        let snap = snapshot(&handle);
         let state = handle.state::<AppState>();
         let mut tray = lock(&state.tray);
         if let Some(tray) = tray.as_mut() {
@@ -313,6 +338,11 @@ fn is_active(app: &AppHandle) -> bool {
 fn start(app: &AppHandle) {
     let state = app.state::<AppState>();
     let _op = lock(&state.op);
+    start_locked(&state);
+}
+
+/// `start` for a caller that already holds `op`.
+fn start_locked(state: &AppState) {
     let settings = lock(&state.settings).clone();
     let result = state.awake.acquire(settings.mode);
     let mut session = lock(&state.session);
@@ -336,9 +366,27 @@ fn renew(app: &AppHandle) {
 fn stop(app: &AppHandle) {
     let state = app.state::<AppState>();
     let _op = lock(&state.op);
+    stop_locked(&state);
+}
+
+/// `stop` for a caller that already holds `op`.
+fn stop_locked(state: &AppState) {
     state.awake.release();
     let mut session = lock(&state.session);
     *session = session.stopped();
+}
+
+/// Switch off if on, on if off. Decides under the lock, so two quick presses
+/// always cancel out.
+fn toggle(app: &AppHandle) {
+    let state = app.state::<AppState>();
+    let _op = lock(&state.op);
+    let active = lock(&state.session).active;
+    if active {
+        stop_locked(&state);
+    } else {
+        start_locked(&state);
+    }
 }
 
 /// Switch off if the timer of session `generation` has run out. The timer thread
@@ -347,29 +395,18 @@ fn stop(app: &AppHandle) {
 fn stop_if_time_is_up(app: &AppHandle, generation: u64) -> bool {
     let state = app.state::<AppState>();
     let _op = lock(&state.op);
-    if !lock(&state.session).time_is_up(generation, now_ms()) {
-        return false;
+    let expired = lock(&state.session).expire(generation, now_ms());
+    if expired {
+        state.awake.release();
     }
-    state.awake.release();
-    let mut session = lock(&state.session);
-    *session = session.stopped();
-    true
+    expired
 }
 
 /// Add up to 15 minutes to the running timer.
 fn extend(app: &AppHandle) {
     let state = app.state::<AppState>();
     let _op = lock(&state.op);
-    let mut session = lock(&state.session);
-    if !session.active {
-        return;
-    }
-    if let Some(countdown) = session
-        .countdown
-        .and_then(|c| c.extended(now_ms(), EXTEND_MS))
-    {
-        session.countdown = Some(countdown);
-    }
+    lock(&state.session).extend(now_ms());
 }
 
 fn update_settings(app: &AppHandle, change: impl FnOnce(&mut Settings)) {
@@ -507,11 +544,7 @@ fn in_background(app: &AppHandle, job: impl FnOnce(&AppHandle) + Send + 'static)
 
 pub(crate) fn toggle_in_background(app: &AppHandle) {
     in_background(app, |app| {
-        if is_active(app) {
-            stop(app);
-        } else {
-            start(app);
-        }
+        toggle(app);
         publish(app);
     });
 }
@@ -531,7 +564,7 @@ pub(crate) fn on_menu(app: &AppHandle, id: &str) {
         tray::MENU_CUSTOM => {
             // The menu ticks a check item when it is clicked. Put the tick back
             // until a time is actually picked.
-            refresh_tray(app, snapshot(app));
+            refresh_tray(app);
             show_window(app);
             let _ = app.emit(EVENT_SHOW_CUSTOM, ());
         }
@@ -569,7 +602,7 @@ fn spawn_timer(app: AppHandle) {
                     }
                 }
                 // Keep the countdown in the tray menu ticking.
-                Some(_) if snap.active => refresh_tray(&app, snap),
+                Some(_) if snap.active => refresh_tray(&app),
                 _ => {}
             }
         })
@@ -909,17 +942,29 @@ mod tests {
     }
 
     #[test]
+    fn expiring_switches_off_once() {
+        let mut session = Session::default().started(Ok(()), minutes(30));
+        let end = NOW + 30 * 60_000;
+        assert!(session.expire(1, end));
+        assert!(!session.active);
+        assert_eq!(session.generation, 1);
+        assert!(
+            !session.expire(1, end),
+            "already off: no second notification"
+        );
+    }
+
+    #[test]
     fn a_late_stop_spares_a_timer_that_was_extended() {
         // The timer thread sees session 1 run out...
         let mut session = Session::default().started(Ok(()), minutes(30));
         let end = NOW + 30 * 60_000;
         assert!(session.time_is_up(1, end));
         // ...the user adds 15 minutes before it gets the lock...
-        session.countdown = session
-            .countdown
-            .and_then(|c| c.extended(end - 1, EXTEND_MS));
-        // ...so the timer thread must leave it running.
-        assert!(!session.time_is_up(1, end));
+        assert!(session.extend(end - 1));
+        // ...so the timer thread must leave it running, and not say time is up.
+        assert!(!session.expire(1, end));
+        assert!(session.active);
     }
 
     #[test]
@@ -928,11 +973,26 @@ mod tests {
         let end = NOW + 30 * 60_000;
         assert!(session.time_is_up(1, end));
         // The user switches off and on again before the timer thread gets the lock.
-        let again = session.stopped().started(Ok(()), minutes(15));
-        assert!(
-            !again.time_is_up(1, end),
-            "the old decision is about session 1"
-        );
+        let mut again = session.stopped().started(Ok(()), minutes(15));
+        assert!(!again.expire(1, end), "the old decision is about session 1");
+        assert!(again.active);
+        assert_eq!(again.generation, 2);
+    }
+
+    #[test]
+    fn extending_does_nothing_without_a_running_timer() {
+        let mut off = Session::default();
+        assert!(!off.extend(NOW));
+        assert_eq!(off.countdown, None);
+
+        let mut unlimited = Session::default().started(Ok(()), minutes(0));
+        assert!(!unlimited.extend(NOW));
+        assert_eq!(unlimited.countdown, None);
+
+        let mut finished = Session::default().started(Ok(()), minutes(30));
+        let before = finished.countdown;
+        assert!(!finished.extend(NOW + 30 * 60_000));
+        assert_eq!(finished.countdown, before);
     }
 
     #[test]
