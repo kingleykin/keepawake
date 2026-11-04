@@ -15,7 +15,7 @@
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-green"></a>
 </p>
 
-<p align="center"><a href="README.vi.md">Tiếng Việt</a></p>
+<p align="center"><a href="https://keepawake.vn">keepawake.vn</a> · <a href="README.vi.md">Tiếng Việt</a></p>
 
 <p align="center">
   <img src="docs/demo.gif" width="640" alt="Picking 30 minutes, switching KeepAwake on, then setting it to keep awake until 18:30. The tray icon turns green while it is on.">
@@ -45,7 +45,7 @@
 
 ## Install
 
-Download the file for your system from the **[latest release](https://github.com/kingleykin/keepawake/releases/latest)**.
+Download the file for your system from the **[latest release](https://github.com/kingleykin/keepawake/releases/latest)**, or from **[keepawake.vn](https://keepawake.vn)**, which picks the right file for you.
 
 | System | File |
 |---|---|
