@@ -9,7 +9,7 @@
   macOS · Windows · Linux
 </p>
 
-<p align="center"><a href="README.md">English</a></p>
+<p align="center"><a href="https://keepawake.vn">keepawake.vn</a> · <a href="README.md">English</a></p>
 
 <p align="center">
   <img src="docs/demo.gif" width="640" alt="Chọn 30 phút, bật KeepAwake, rồi đặt giữ thức đến 18:30. Icon trên khay chuyển sang màu xanh khi đang bật.">
@@ -39,7 +39,7 @@
 
 ## Cài đặt
 
-Tải file theo hệ điều hành ở **[bản phát hành mới nhất](https://github.com/kingleykin/keepawake/releases/latest)**.
+Tải file theo hệ điều hành ở **[bản phát hành mới nhất](https://github.com/kingleykin/keepawake/releases/latest)**, hoặc ở **[keepawake.vn](https://keepawake.vn)**, trang này tự chọn đúng file cho máy bạn.
 
 | Hệ điều hành | File |
 |---|---|
