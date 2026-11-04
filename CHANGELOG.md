@@ -4,6 +4,21 @@ All notable changes to KeepAwake are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- "+15 min" adds a quarter of an hour to a running timer, from the window or the
+  tray menu. It never takes the time left past 24 hours, and never shortens a timer.
+  The window now shows when the timer ends, e.g. "44:58 left · until 18:45".
+- On macOS the menu bar shows the time left next to the icon, e.g. `29m` or `1h05`.
+  It can be turned off in Settings.
+
+### Fixed
+
+- If you added time or switched off and on again in the same second the timer ran
+  out, KeepAwake could switch off the session you had just set, and say time was up.
+
 ## [1.1.0] - 2026-10-30
 
 ### Added
@@ -56,6 +71,7 @@ All notable changes to KeepAwake are listed here. The format follows
 - Light and dark themes that follow the system.
 - Installers for macOS (universal `.dmg`), Windows (`.exe`, `.msi`) and Linux (`.AppImage`, `.deb`, `.rpm`).
 
+[Unreleased]: https://github.com/kingleykin/keepawake/compare/v1.1.0...HEAD
 [1.1.0]: https://github.com/kingleykin/keepawake/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/kingleykin/keepawake/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/kingleykin/keepawake/releases/tag/v1.0.0

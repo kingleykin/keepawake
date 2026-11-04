@@ -28,6 +28,10 @@ const EVENT_SHOW_SETTINGS: &str = "show-settings";
 const EVENT_SHOW_CUSTOM: &str = "show-custom";
 /// Wait this long after launch before looking for an update.
 const UPDATE_CHECK_DELAY: Duration = Duration::from_secs(5);
+/// How much "+15 min" adds.
+const EXTEND_MS: u64 = 15 * 60_000;
+/// "+15 min" never takes the time left past a day.
+const MAX_REMAINING_MS: u64 = 24 * 3_600_000;
 
 /// A running timer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -37,24 +41,67 @@ struct Countdown {
     total_ms: u64,
 }
 
+impl Countdown {
+    /// The countdown with up to `add_ms` more, capped at `MAX_REMAINING_MS` from
+    /// `now`. `None` when it has run out or nothing can be added: a timer that
+    /// already has more than a day left, e.g. across a daylight saving change,
+    /// is never cut short.
+    fn extended(self, now: u64, add_ms: u64) -> Option<Countdown> {
+        if now >= self.ends_at_ms {
+            return None;
+        }
+        let ends_at_ms = (self.ends_at_ms + add_ms).min(now + MAX_REMAINING_MS);
+        let added = ends_at_ms
+            .checked_sub(self.ends_at_ms)
+            .filter(|&added| added > 0)?;
+        Some(Countdown {
+            ends_at_ms,
+            total_ms: self.total_ms + added,
+        })
+    }
+}
+
 #[derive(Default)]
 struct Session {
     active: bool,
     /// `None` means no time limit.
     countdown: Option<Countdown>,
     error: Option<String>,
+    /// Counts starts, so a decision made about an earlier session cannot stop a
+    /// later one. Never goes back to zero.
+    generation: u64,
 }
 
 impl Session {
     /// A new session with a freshly set timer.
-    fn started(result: Result<(), String>, countdown: Option<Countdown>) -> Self {
-        Self::answered(result, countdown)
+    fn started(&self, result: Result<(), String>, countdown: Option<Countdown>) -> Self {
+        Session {
+            generation: self.generation + 1,
+            ..Self::answered(result, countdown)
+        }
     }
 
     /// The same session with a new OS request, e.g. after a mode change.
     /// The countdown carries on instead of starting over.
     fn renewed(&self, result: Result<(), String>) -> Self {
-        Self::answered(result, self.countdown)
+        Session {
+            generation: self.generation,
+            ..Self::answered(result, self.countdown)
+        }
+    }
+
+    fn stopped(&self) -> Self {
+        Session {
+            generation: self.generation,
+            ..Session::default()
+        }
+    }
+
+    /// Whether session `generation` is still the running one and its timer has run out.
+    fn time_is_up(&self, generation: u64, now: u64) -> bool {
+        self.active
+            && self.generation == generation
+            && self.countdown.is_some_and(|c| now >= c.ends_at_ms)
     }
 
     /// The session once the OS has answered a keep-awake request.
@@ -63,14 +110,13 @@ impl Session {
             Ok(()) => Session {
                 active: true,
                 countdown,
-                error: None,
+                ..Session::default()
             },
             Err(error) => {
                 eprintln!("keep awake failed: {error}");
                 Session {
-                    active: false,
-                    countdown: None,
                     error: Some(error),
+                    ..Session::default()
                 }
             }
         }
@@ -108,17 +154,34 @@ pub struct Snapshot {
     pub close_to_tray: bool,
     pub autostart: bool,
     pub notify_when_done: bool,
+    pub show_time_in_menu_bar: bool,
     pub shortcut: bool,
     pub shortcut_error: Option<String>,
     /// Global shortcuts may never fire here, although registering them succeeds.
     pub shortcut_may_fail: bool,
     /// Version of a newer release, if one was found.
     pub update: Option<String>,
+    /// Which session this is, for the timer thread. The window does not need it.
+    #[serde(skip)]
+    generation: u64,
 }
 
 impl Snapshot {
     pub fn remaining_ms(&self) -> Option<u64> {
         self.ends_at_ms.map(|end| end.saturating_sub(now_ms()))
+    }
+
+    /// Whether "+15 min" would add anything right now.
+    pub fn can_extend(&self) -> bool {
+        match (self.active, self.ends_at_ms, self.total_ms) {
+            (true, Some(ends_at_ms), Some(total_ms)) => Countdown {
+                ends_at_ms,
+                total_ms,
+            }
+            .extended(now_ms(), EXTEND_MS)
+            .is_some(),
+            _ => false,
+        }
     }
 }
 
@@ -211,10 +274,12 @@ fn snapshot(app: &AppHandle) -> Snapshot {
         close_to_tray: settings.close_to_tray,
         autostart,
         notify_when_done: settings.notify_when_done,
+        show_time_in_menu_bar: settings.show_time_in_menu_bar,
         shortcut: settings.shortcut,
         shortcut_error,
         shortcut_may_fail: on_wayland(),
         update,
+        generation: session.generation,
     };
     drop(session);
     snap
@@ -250,7 +315,8 @@ fn start(app: &AppHandle) {
     let _op = lock(&state.op);
     let settings = lock(&state.settings).clone();
     let result = state.awake.acquire(settings.mode);
-    *lock(&state.session) = Session::started(result, countdown(&settings, &Local::now()));
+    let mut session = lock(&state.session);
+    *session = session.started(result, countdown(&settings, &Local::now()));
 }
 
 /// Hand the OS a request for the current mode, keeping the running timer.
@@ -271,7 +337,39 @@ fn stop(app: &AppHandle) {
     let state = app.state::<AppState>();
     let _op = lock(&state.op);
     state.awake.release();
-    *lock(&state.session) = Session::default();
+    let mut session = lock(&state.session);
+    *session = session.stopped();
+}
+
+/// Switch off if the timer of session `generation` has run out. The timer thread
+/// looked without the lock, so check again: the user may have added time or
+/// started over since. Returns whether it switched off.
+fn stop_if_time_is_up(app: &AppHandle, generation: u64) -> bool {
+    let state = app.state::<AppState>();
+    let _op = lock(&state.op);
+    if !lock(&state.session).time_is_up(generation, now_ms()) {
+        return false;
+    }
+    state.awake.release();
+    let mut session = lock(&state.session);
+    *session = session.stopped();
+    true
+}
+
+/// Add up to 15 minutes to the running timer.
+fn extend(app: &AppHandle) {
+    let state = app.state::<AppState>();
+    let _op = lock(&state.op);
+    let mut session = lock(&state.session);
+    if !session.active {
+        return;
+    }
+    if let Some(countdown) = session
+        .countdown
+        .and_then(|c| c.extended(now_ms(), EXTEND_MS))
+    {
+        session.countdown = Some(countdown);
+    }
 }
 
 fn update_settings(app: &AppHandle, change: impl FnOnce(&mut Settings)) {
@@ -421,6 +519,10 @@ pub(crate) fn toggle_in_background(app: &AppHandle) {
 pub(crate) fn on_menu(app: &AppHandle, id: &str) {
     match id {
         tray::MENU_TOGGLE => toggle_in_background(app),
+        tray::MENU_EXTEND => in_background(app, |app| {
+            extend(app);
+            publish(app);
+        }),
         tray::MENU_OPEN => show_window(app),
         tray::MENU_SETTINGS => {
             show_window(app);
@@ -460,9 +562,11 @@ fn spawn_timer(app: AppHandle) {
             let snap = snapshot(&app);
             match snap.ends_at_ms {
                 Some(end) if snap.active && now_ms() >= end => {
-                    stop(&app);
-                    publish(&app);
-                    notify_time_up(&app);
+                    // Whoever added time or started over has already published.
+                    if stop_if_time_is_up(&app, snap.generation) {
+                        publish(&app);
+                        notify_time_up(&app);
+                    }
                 }
                 // Keep the countdown in the tray menu ticking.
                 Some(_) if snap.active => refresh_tray(&app, snap),
@@ -502,6 +606,12 @@ async fn set_custom(app: AppHandle, custom: Custom) -> Result<Snapshot, String> 
 }
 
 #[tauri::command]
+async fn extend_timer(app: AppHandle) -> Snapshot {
+    extend(&app);
+    publish(&app)
+}
+
+#[tauri::command]
 async fn set_mode(app: AppHandle, mode: Mode) -> Snapshot {
     update_settings(&app, |s| s.mode = mode);
     renew(&app);
@@ -523,6 +633,12 @@ async fn set_close_to_tray(app: AppHandle, enabled: bool) -> Snapshot {
 #[tauri::command]
 async fn set_notify_when_done(app: AppHandle, enabled: bool) -> Snapshot {
     update_settings(&app, |s| s.notify_when_done = enabled);
+    publish(&app)
+}
+
+#[tauri::command]
+async fn set_show_time_in_menu_bar(app: AppHandle, enabled: bool) -> Snapshot {
+    update_settings(&app, |s| s.show_time_in_menu_bar = enabled);
     publish(&app)
 }
 
@@ -656,11 +772,13 @@ pub fn run() {
             set_active,
             set_duration,
             set_custom,
+            extend_timer,
             set_mode,
             set_language,
             set_close_to_tray,
             set_autostart,
             set_notify_when_done,
+            set_show_time_in_menu_bar,
             set_shortcut,
             check_update,
             install_update,
@@ -724,7 +842,7 @@ mod tests {
 
     #[test]
     fn starting_begins_a_new_countdown() {
-        let session = Session::started(Ok(()), minutes(60));
+        let session = Session::default().started(Ok(()), minutes(60));
         assert!(session.active);
         assert_eq!(
             session.countdown,
@@ -738,27 +856,130 @@ mod tests {
 
     #[test]
     fn renewing_keeps_the_countdown() {
-        let session = Session::started(Ok(()), minutes(30));
+        let session = Session::default().started(Ok(()), minutes(30));
         let renewed = session.renewed(Ok(()));
         assert!(renewed.active);
         assert_eq!(renewed.countdown, session.countdown);
 
-        let unlimited = Session::started(Ok(()), minutes(0)).renewed(Ok(()));
+        let unlimited = Session::default()
+            .started(Ok(()), minutes(0))
+            .renewed(Ok(()));
         assert!(unlimited.active);
         assert_eq!(unlimited.countdown, None);
     }
 
     #[test]
     fn a_refused_request_switches_off() {
-        let session = Session::started(Ok(()), minutes(30));
+        let session = Session::default().started(Ok(()), minutes(30));
         let refused = session.renewed(Err("denied".into()));
         assert!(!refused.active);
         assert_eq!(refused.countdown, None);
         assert_eq!(refused.error.as_deref(), Some("denied"));
 
-        let refused = Session::started(Err("denied".into()), minutes(30));
+        let refused = Session::default().started(Err("denied".into()), minutes(30));
         assert!(!refused.active);
         assert_eq!(refused.countdown, None);
+    }
+
+    #[test]
+    fn each_start_is_a_new_session() {
+        let first = Session::default().started(Ok(()), minutes(30));
+        assert_eq!(first.generation, 1);
+        assert_eq!(
+            first.renewed(Ok(())).generation,
+            1,
+            "a mode change keeps it"
+        );
+        let stopped = first.stopped();
+        assert!(!stopped.active);
+        assert_eq!(stopped.generation, 1, "stopping never resets the count");
+        assert_eq!(stopped.started(Ok(()), minutes(30)).generation, 2);
+    }
+
+    #[test]
+    fn time_is_up_only_for_the_session_that_ran_out() {
+        let session = Session::default().started(Ok(()), minutes(30));
+        let end = NOW + 30 * 60_000;
+        assert!(!session.time_is_up(1, end - 1));
+        assert!(session.time_is_up(1, end));
+        assert!(!Session::default()
+            .started(Ok(()), minutes(0))
+            .time_is_up(1, end));
+        assert!(!session.stopped().time_is_up(1, end));
+    }
+
+    #[test]
+    fn a_late_stop_spares_a_timer_that_was_extended() {
+        // The timer thread sees session 1 run out...
+        let mut session = Session::default().started(Ok(()), minutes(30));
+        let end = NOW + 30 * 60_000;
+        assert!(session.time_is_up(1, end));
+        // ...the user adds 15 minutes before it gets the lock...
+        session.countdown = session
+            .countdown
+            .and_then(|c| c.extended(end - 1, EXTEND_MS));
+        // ...so the timer thread must leave it running.
+        assert!(!session.time_is_up(1, end));
+    }
+
+    #[test]
+    fn a_late_stop_spares_a_session_started_again() {
+        let session = Session::default().started(Ok(()), minutes(30));
+        let end = NOW + 30 * 60_000;
+        assert!(session.time_is_up(1, end));
+        // The user switches off and on again before the timer thread gets the lock.
+        let again = session.stopped().started(Ok(()), minutes(15));
+        assert!(
+            !again.time_is_up(1, end),
+            "the old decision is about session 1"
+        );
+    }
+
+    #[test]
+    fn extending_adds_fifteen_minutes() {
+        let countdown = minutes(30).unwrap();
+        assert_eq!(
+            countdown.extended(NOW + 60_000, EXTEND_MS),
+            Some(Countdown {
+                ends_at_ms: NOW + 45 * 60_000,
+                total_ms: 45 * 60_000,
+            })
+        );
+    }
+
+    #[test]
+    fn extending_stops_at_a_day_left() {
+        let countdown = Countdown {
+            ends_at_ms: NOW + 23 * 3_600_000 + 50 * 60_000,
+            total_ms: 23 * 3_600_000 + 50 * 60_000,
+        };
+        let extended = countdown.extended(NOW, EXTEND_MS).unwrap();
+        assert_eq!(extended.ends_at_ms, NOW + MAX_REMAINING_MS);
+        assert_eq!(
+            extended.total_ms, MAX_REMAINING_MS,
+            "counts only what was added"
+        );
+        assert_eq!(
+            extended.extended(NOW, EXTEND_MS),
+            None,
+            "already a day left"
+        );
+    }
+
+    #[test]
+    fn extending_never_shortens_a_longer_timer() {
+        // "Until" across the night the clocks go back can be 24h59 away.
+        let countdown = Countdown {
+            ends_at_ms: NOW + 24 * 3_600_000 + 59 * 60_000,
+            total_ms: 24 * 3_600_000 + 59 * 60_000,
+        };
+        assert_eq!(countdown.extended(NOW, EXTEND_MS), None);
+    }
+
+    #[test]
+    fn a_finished_timer_cannot_be_extended() {
+        let countdown = minutes(30).unwrap();
+        assert_eq!(countdown.extended(countdown.ends_at_ms, EXTEND_MS), None);
     }
 
     #[test]
