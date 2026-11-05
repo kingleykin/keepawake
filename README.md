@@ -117,9 +117,9 @@ It does **not** stop sleep that you ask for yourself, such as closing a laptop l
 |---|---|---|
 | macOS | IOKit power assertions `PreventUserIdleSystemSleep` and `PreventUserIdleDisplaySleep` | `pmset -g assertions` |
 | Windows | `SetThreadExecutionState` with `ES_SYSTEM_REQUIRED`, plus `ES_DISPLAY_REQUIRED` in display mode | `powercfg /requests` |
-| Linux | XDG desktop portal `Inhibit` first. Falls back to `org.freedesktop.ScreenSaver` and systemd-logind | `systemd-inhibit --list` |
+| Linux | Every one that answers: the GNOME session manager, the XDG desktop portal `Inhibit`, and `org.freedesktop.ScreenSaver` with systemd-logind (in System mode only if the others fail) | `gnome-session-inhibit --list`, `systemd-inhibit --list` |
 
-**Linux notes.** GNOME and KDE work on both Wayland and X11 through the desktop portal. Minimal Wayland compositors such as Sway or Hyprland may ignore these requests. If nothing accepts the request, KeepAwake shows an error instead of pretending to work. Left-click on the tray icon opens the menu on Linux, because Tauri cannot tell left and right clicks apart there.
+**Linux notes.** GNOME and the desktops built on it, such as Ubuntu and Zorin OS, work on both Wayland and X11 through the session manager. KDE works through the desktop portal. Minimal Wayland compositors such as Sway or Hyprland may ignore these requests. If nothing accepts the request, KeepAwake shows an error instead of pretending to work. Left-click on the tray icon opens the menu on Linux, because Tauri cannot tell left and right clicks apart there.
 
 ## FAQ
 

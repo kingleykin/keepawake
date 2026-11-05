@@ -4,6 +4,14 @@ All notable changes to KeepAwake are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- Linux: on GNOME and desktops built on it, such as Ubuntu and Zorin OS, the screen
+  could still turn off while KeepAwake said it was on. KeepAwake now asks the GNOME
+  session manager directly, and holds every other request the desktop accepts.
+
 ## [1.1.0] - 2026-10-30
 
 ### Added
@@ -56,6 +64,7 @@ All notable changes to KeepAwake are listed here. The format follows
 - Light and dark themes that follow the system.
 - Installers for macOS (universal `.dmg`), Windows (`.exe`, `.msi`) and Linux (`.AppImage`, `.deb`, `.rpm`).
 
+[Unreleased]: https://github.com/kingleykin/keepawake/compare/v1.1.0...HEAD
 [1.1.0]: https://github.com/kingleykin/keepawake/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/kingleykin/keepawake/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/kingleykin/keepawake/releases/tag/v1.0.0
