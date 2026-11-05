@@ -18,6 +18,9 @@ All notable changes to KeepAwake are listed here. The format follows
 
 - If you added time or switched off and on again in the same second the timer ran
   out, KeepAwake could switch off the session you had just set, and say time was up.
+- Linux: on GNOME and desktops built on it, such as Ubuntu and Zorin OS, the screen
+  could still turn off while KeepAwake said it was on. KeepAwake now asks the GNOME
+  session manager directly, and holds every other request the desktop accepts.
 
 ## [1.1.0] - 2026-10-30
 
