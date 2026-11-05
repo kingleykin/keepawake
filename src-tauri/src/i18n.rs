@@ -18,6 +18,7 @@ pub enum Text {
     Settings,
     Quit,
     Custom,
+    AddTime,
     TimeUp,
 }
 
@@ -35,6 +36,8 @@ pub fn text(lang: Language, key: Text) -> &'static str {
         (Vi, Quit) => "Thoát",
         (En, Custom) => "Custom…",
         (Vi, Custom) => "Tùy chỉnh…",
+        (En, AddTime) => "Add 15 minutes",
+        (Vi, AddTime) => "Thêm 15 phút",
         (En, TimeUp) => "KeepAwake is off, your computer may sleep again",
         (Vi, TimeUp) => "KeepAwake đã tắt, máy có thể ngủ lại",
     }
@@ -88,9 +91,33 @@ pub fn clock(ms: u64) -> String {
     }
 }
 
+/// Time left next to the tray icon: `29m`, `1h05`. Rounds up to the minute, so
+/// the last seconds still read `1m`.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub fn menu_bar_time(ms: u64) -> String {
+    let minutes = ms.div_ceil(60_000);
+    if minutes < 60 {
+        format!("{minutes}m")
+    } else {
+        format!("{}h{:02}", minutes / 60, minutes % 60)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn menu_bar_time_format() {
+        assert_eq!(menu_bar_time(10_000), "1m");
+        assert_eq!(menu_bar_time(59_000), "1m");
+        assert_eq!(menu_bar_time(60_000), "1m");
+        assert_eq!(menu_bar_time(61_000), "2m");
+        assert_eq!(menu_bar_time(59 * 60_000), "59m");
+        assert_eq!(menu_bar_time(59 * 60_000 + 1), "1h00");
+        assert_eq!(menu_bar_time(65 * 60_000), "1h05");
+        assert_eq!(menu_bar_time((24 * 60 + 59) * 60_000), "24h59");
+    }
 
     #[test]
     fn clock_format() {

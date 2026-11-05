@@ -28,7 +28,10 @@
       </span>
     </button>
     <p id="status" class="status" role="status" aria-live="polite"></p>
-    <p id="detail" class="detail"></p>
+    <div class="detail-row">
+      <p id="detail" class="detail"></p>
+      <button id="extend" class="chip extend" type="button" data-i18n="extend" data-i18n-label="extendLabel" hidden></button>
+    </div>
 
     <section aria-labelledby="duration-label">
       <h2 id="duration-label" data-i18n="duration"></h2>
@@ -70,6 +73,10 @@
     <label class="opt">
       <span data-i18n="notifyWhenDone"></span>
       <input id="notify" class="switch" type="checkbox" role="switch">
+    </label>
+    <label id="menu-bar-time-opt" class="opt" hidden>
+      <span data-i18n="menuBarTime"></span>
+      <input id="menu-bar-time" class="switch" type="checkbox" role="switch">
     </label>
     <label class="opt">
       <span>

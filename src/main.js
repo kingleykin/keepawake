@@ -8,7 +8,10 @@
   const DURATIONS = [15, 30, 60, 120, 240, 0];
   const REPO_URL = "https://github.com/kingleykin/keepawake";
   const MAX_CUSTOM_MIN = 1440;
-  const SHORTCUT_KEYS = /Mac/.test(navigator.userAgent) ? "⌥⌘K" : "Ctrl+Alt+K";
+  // "+15 min" never takes the time left past a day. Same rule as lib.rs.
+  const MAX_REMAINING_MS = 24 * 3_600_000;
+  const IS_MAC = /Mac/.test(navigator.userAgent);
+  const SHORTCUT_KEYS = IS_MAC ? "⌥⌘K" : "Ctrl+Alt+K";
 
   const $ = (id) => document.getElementById(id);
   const el = {
@@ -18,10 +21,13 @@
     progress: $("progress"),
     status: $("status"),
     detail: $("detail"),
+    extend: $("extend"),
     durations: $("durations"),
     autostart: $("autostart"),
     closeToTray: $("close-to-tray"),
     notify: $("notify"),
+    menuBarTimeOpt: $("menu-bar-time-opt"),
+    menuBarTime: $("menu-bar-time"),
     shortcut: $("shortcut"),
     shortcutKeys: $("shortcut-keys"),
     shortcutError: $("shortcut-error"),
@@ -111,6 +117,9 @@
     el.autostart.checked = state.autostart;
     el.closeToTray.checked = state.closeToTray;
     el.notify.checked = state.notifyWhenDone;
+    // Only the macOS menu bar can show text next to the icon.
+    el.menuBarTimeOpt.hidden = !IS_MAC;
+    el.menuBarTime.checked = state.showTimeInMenuBar;
     el.shortcut.checked = state.shortcut;
     el.shortcutKeys.textContent = SHORTCUT_KEYS;
     el.shortcutError.hidden = !(state.shortcut && state.shortcutError);
@@ -140,11 +149,19 @@
     el.detail.classList.toggle("error", failed);
 
     let progress = 0;
-    if (state.active && state.endsAtMs) {
+    const timed = Boolean(state.active && state.endsAtMs);
+    el.extend.hidden = !timed;
+    if (timed) {
       const remaining = Math.max(0, state.endsAtMs - Date.now());
       const total = state.totalMs || 0;
+      const end = new Date(state.endsAtMs);
       progress = total > 0 ? Math.min(1, remaining / total) : 0;
-      el.detail.textContent = fill(t.left, { t: clock(remaining) });
+      // The end time, so a timer set "until 18:30" and then extended reads right.
+      el.detail.textContent = fill(t.leftUntil, {
+        t: clock(remaining),
+        at: hhmm(end.getHours(), end.getMinutes()),
+      });
+      el.extend.disabled = remaining <= 0 || remaining >= MAX_REMAINING_MS;
     } else if (state.active) {
       progress = 1;
       el.detail.textContent = t.noLimit;
@@ -281,6 +298,7 @@
   // ---- wiring ----
 
   el.toggle.addEventListener("click", toggle);
+  el.extend.addEventListener("click", () => call("extend_timer"));
   document.querySelectorAll('input[name="mode"]').forEach((radio) => {
     radio.addEventListener("change", () => call("set_mode", { mode: radio.value }));
   });
@@ -321,6 +339,9 @@
   );
   el.notify.addEventListener("change", () =>
     call("set_notify_when_done", { enabled: el.notify.checked })
+  );
+  el.menuBarTime.addEventListener("change", () =>
+    call("set_show_time_in_menu_bar", { enabled: el.menuBarTime.checked })
   );
   el.shortcut.addEventListener("change", () =>
     call("set_shortcut", { enabled: el.shortcut.checked })

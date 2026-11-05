@@ -271,3 +271,170 @@ Những điểm khác so với kế hoạch ban đầu, quyết định trong l�
 Đã kiểm tra trên macOS (Apple Silicon): bật/tắt, đổi chế độ, đổi thời gian, đổi ngôn ngữ và tự tắt khi hết giờ, đối chiếu với `pmset -g assertions`. Windows và Linux được build và kiểm tra tự động trên GitHub Actions, chưa thử tay trên máy thật.
 
 Cập nhật 31/10/2026: bản Windows v1.1.0 đã được cài và dùng thử trên máy Windows thật, hoạt động bình thường. Mục Installed apps hiện đúng nhà phát hành "KeepAwake contributors". Linux vẫn chưa thử tay, nhất là việc gập máy trên GNOME.
+
+## 11. Kế hoạch v1.2 (04/11/2026, đã sửa sau hai vòng review)
+
+Mục tiêu: bốn nâng cấp nhỏ, ai dùng cũng thấy lợi, không làm app nặng thêm. Mỗi phần là một PR riêng, review và CI xong mới merge, cuối cùng phát hành v1.2.0.
+
+Kế hoạch được review hai vòng:
+- Vòng 1 do một agent độc lập làm, vì lúc đó Codex hết hạn mức. Agent kiểm tra với mã nguồn, `Cargo.lock`, mã của tauri-action và tài liệu chính thức. Những chỗ sửa theo vòng này ghi *(review)*.
+- Vòng 2 do Codex làm cùng ngày, không thấy lỗi mức cao. Những chỗ sửa theo vòng này ghi *(Codex)*.
+
+### 11.0 Sửa trước: tranh chấp giữa luồng hẹn giờ và thao tác của người dùng *(review)*
+
+Luồng hẹn giờ (`lib.rs:460-466`) đọc `snapshot()` mà không giữ khóa `op`, rồi mới gọi `stop()`, và `stop()` không kiểm tra lại gì. Nếu người dùng bấm "+15 phút" (hoặc tắt rồi bật lại) đúng giữa hai bước đó, luồng hẹn giờ sẽ tắt nhầm phiên vừa được gia hạn hoặc vừa bật.
+
+- Mỗi `Session` có số thứ tự `generation`, tăng mỗi lần `start()`.
+- `generation` tăng dần suốt vòng đời app. Không bị đặt lại về 0 khi phiên về `Session::default()`, và `renew` giữ nguyên nó *(Codex)*.
+- Thêm `stop_if(generation, điều kiện)`: giữ khóa `op`, đọc lại phiên, chỉ tắt khi vẫn đúng phiên đó và điều kiện vẫn đúng (`now >= ends_at` hoặc lý do pin). Luồng hẹn giờ và phần bảo vệ pin chỉ tắt qua hàm này.
+- `stop_if` dùng phần tắt nội bộ, không gọi lại `stop()` vì `stop()` cũng lấy khóa `op` *(Codex)*.
+- `stop_if` trả về việc nó có thật sự tắt hay không (`Option<Reason>`). Luồng hẹn giờ chỉ `publish` và gửi thông báo khi có tắt thật. Nếu không, phiên vừa được gia hạn vẫn chạy mà người dùng lại nhận thông báo "hết giờ" sai *(Codex)*.
+- Có unit test tái hiện hai thứ tự. Cả hai trường hợp đều không được tắt và không được thông báo:
+  - luồng hẹn giờ thấy hết giờ → người dùng gia hạn → lệnh tắt cũ chạy;
+  - luồng hẹn giờ thấy hết giờ → người dùng tắt rồi bật phiên mới → lệnh tắt cũ chạy.
+
+### 11.1 Thời gian còn lại trên thanh menu (macOS)
+
+- Khi đang bật và có hẹn giờ, cạnh biểu tượng hiện thời gian còn lại dạng ngắn: `29m`, `1h05`. Làm tròn lên theo phút, nên còn 10 giây vẫn hiện `1m`. Trên 24 giờ vẫn hiện đúng, ví dụ `24h59`, vì kiểu "đến giờ" có thể dài khoảng 25 giờ vào đêm đổi giờ mùa đông. Không giới hạn hoặc đang tắt thì không hiện chữ.
+- Dùng `TrayIcon::set_title`, chạy trên luồng chính (đã kiểm chứng trong mã tray-icon 0.25.1). Chỉ gọi khi chuỗi thay đổi.
+- Chỉ macOS. Windows không hỗ trợ. Trên Linux, tài liệu Tauri khuyên không hiện chữ trừ khi người dùng yêu cầu.
+- Cài đặt mới "Hiện thời gian trên thanh menu", mặc định bật, chỉ hiện trên macOS.
+- Kiểm thử: unit test hàm định dạng với 10 giây, 59 giây, 1 phút, 59 phút, 1 giờ, 24 giờ 59 phút.
+
+### 11.2 Nút "+15 phút"
+
+- Menu khay luôn có mục "Thêm 15 phút". Mục này bị mờ khi đang tắt hoặc không giới hạn, vì menu của Tauri 2.12 không ẩn mục được *(review)*. Cửa sổ chính có nút "+15 phút" dưới dòng trạng thái, chỉ hiện khi đang hẹn giờ.
+- Giữ khóa `op` và chỉ làm khi phiên đang bật và `now < ends_at`. Cộng 15 phút vào `ends_at_ms` và `total_ms`. Áp dụng cho cả kiểu "đến 18:30". Lựa chọn đã lưu không đổi.
+- Thời gian còn lại tối đa 24 giờ. Nếu cộng đủ 15 phút sẽ vượt trần thì chỉ cộng đến đúng 24 giờ.
+- **Không bao giờ rút ngắn phiên** *(Codex)*. Kiểu "đến giờ" vào đêm đổi giờ có thể còn khoảng 25 giờ (mục 11.1). Khi đó, kéo về 24 giờ sẽ làm mất gần một giờ, nên nút "+15" không làm gì.
+- `total_ms` cộng đúng số phút thật sự được thêm, không mặc định cộng 15 phút *(Codex)*.
+- Ô chọn "Đến 18:30" vẫn hiện lựa chọn đã lưu. Sau khi gia hạn, dòng chi tiết ghi giờ kết thúc thật, ví dụ "còn 44:58 · đến 18:45", để không bị nhầm *(review)*.
+- *(review)* Plugin notification 2.8.0 **có** hỗ trợ nút trong thông báo trên máy tính (`on_action`, thêm từ bản 2.6.0). Nhưng lúc thông báo hết giờ hiện lên thì phiên đã tắt, nên nút đó phải bật một phiên 15 phút mới. Để v1.3, sau khi thử trên cả ba hệ điều hành.
+- Kiểm thử: unit test hàm gia hạn với các trường hợp:
+  - cộng bình thường;
+  - cộng chạm trần 24 giờ;
+  - đã còn trên 24 giờ, ví dụ đêm đổi giờ, thì không đổi;
+  - không giới hạn;
+  - đang tắt;
+  - vừa hết giờ.
+- Cửa sổ cố định 320×460 và không cuộn được. Phải kiểm tra màn chính và màn Cài đặt (nhất là tiếng Việt) vẫn vừa sau khi thêm nút và cài đặt mới. Nếu không vừa thì cho màn Cài đặt cuộn *(review)*.
+
+### 11.3 Bảo vệ pin
+
+- Cài đặt mới "Khi dùng pin": **Vẫn giữ thức** (mặc định) / **Tắt khi rút sạc** / **Tắt khi pin dưới 20%**. Lưu là `batteryGuard`: `off`, `unplugged`, `below20`. Bỏ mức 10% cho gọn *(review)*.
+- Ngưỡng phần trăm **chỉ tính khi máy đang chạy pin**. Đang cắm sạc mà pin tụt (sạc yếu, sạc tối ưu) thì không tắt *(review)*.
+- **Chỉ phản ứng khi tình trạng thay đổi trong lúc đang bật** (rút sạc, hoặc pin tụt qua 20% lúc đang chạy pin). Cụ thể *(review, Codex)*:
+  - `start()` đọc pin ngay lúc bật để làm mẫu đầu tiên. Mẫu không mang sang từ phiên trước.
+  - Mỗi lần đọc thành công, app so mẫu mới với **mẫu hợp lệ ngay trước nó**, rồi lưu mẫu mới thay mẫu cũ. Không so mãi với mẫu lúc bật. Nhờ vậy vẫn bắt được trường hợp bật khi đang chạy pin, cắm sạc, rồi rút ra; hoặc bật khi dưới 20%, sạc lên trên 20%, rồi tụt xuống lại *(Codex)*.
+  - "Rút sạc" là mẫu trước đang cắm sạc và mẫu sau đang chạy pin.
+  - "Dưới 20%" là mẫu sau đang chạy pin, dưới 20%, trong khi mẫu trước đang cắm sạc hoặc từ 20% trở lên. Như vậy ngưỡng được kích hoạt lại sau khi pin đã lên lại *(Codex)*.
+  - Lần đọc lỗi không thay mẫu trước. Lần đọc thành công kế tiếp so với mẫu hợp lệ gần nhất *(Codex)*.
+  - Kết quả đọc pin mang theo `generation` của phiên và số phiên bản cài đặt lúc bắt đầu đọc. Nếu đọc xong mà phiên đã đổi hoặc cài đặt `batteryGuard` đã đổi, kết quả bị bỏ *(Codex)*.
+  - Mẫu trước nằm trong trạng thái của phiên. `renew` đang dựng lại `Session` (`lib.rs:56`), nên phải mang mẫu này theo *(Codex)*.
+  - Đổi cài đặt `batteryGuard` giữa chừng thì đọc lại mẫu.
+  - Người dùng tự bật khi đã ở dưới ngưỡng thì vẫn bật theo ý họ.
+- Khi tự tắt:
+  - Dừng phiên qua `stop_if` (mục 11.0) và cập nhật khay cùng cửa sổ.
+  - `Session` và `Snapshot` có thêm `stopped_reason`, nên dù không có thông báo, cửa sổ vẫn ghi lý do, ví dụ "Đã tắt: máy đang dùng pin". Dòng này mất khi bật lại *(review)*.
+  - Gửi thông báo nếu cài đặt thông báo đang bật. Nhãn cài đặt đổi thành "Thông báo khi KeepAwake tự tắt" để bao cả hai trường hợp.
+- Phân biệt rõ ba trường hợp *(Codex)*:
+  - **Chắc chắn không có pin:** cài đặt bị mờ, kèm dòng "Không tìm thấy pin".
+  - **Không đọc được trạng thái pin:** cài đặt vẫn dùng được, kèm dòng "Không đọc được trạng thái pin".
+  - **Có pin.**
+- `Snapshot` có trường `battery: "present" | "absent" | "unknown"`. Trường này được đọc lúc khởi động và mỗi lần mở Cài đặt, không phụ thuộc việc app đang bật hay tắt *(review)*.
+- App không bao giờ tự tắt vì lỗi đọc pin.
+- Luồng hẹn giờ được viết lại để kiểm tra pin cả khi **không giới hạn thời gian**, vì đây là trường hợp dùng chính *(review)*. Cứ 30 giây đọc pin một lần, chỉ khi đang bật và cài đặt khác "Vẫn giữ thức". Đọc pin không giữ khóa nào, có giới hạn thời gian chờ, để không làm chậm đồng hồ đếm ngược.
+- Module mới `power.rs` trả về `Result<Option<Power>, Error>` *(Codex)*:
+  - `Ok(None)` là chắc chắn không có pin; `Err` là đọc lỗi.
+  - `Power { on_battery: Option<bool>, percent: Option<u8> }`. Hai trường được biết riêng: Windows có thể biết đang cắm sạc mà không biết phần trăm.
+  - Chế độ "Tắt khi rút sạc" vẫn chạy khi chỉ biết trạng thái sạc.
+  - Không thêm crate mới *(review: đã kiểm chứng bằng `cargo tree`; Codex kiểm lại)*. Vẫn phải khai báo trực tiếp các crate theo từng hệ điều hành, và cập nhật `Cargo.lock` trong PR 2 *(Codex)*.
+  - **macOS:** khai báo thẳng `objc2-io-kit 0.3.2` với tính năng `ps` và `objc2-core-foundation 0.3.2`. Hai crate này đã có trong cây qua `keepawake`. Dùng `IOPSCopyPowerSourcesInfo` + `IOPSCopyPowerSourcesList` + `IOPSGetPowerSourceDescription`.
+  - **Windows:** dùng `windows 0.62.2`, đã có sẵn tính năng `Win32_System_Power`, để gọi `GetSystemPowerStatus`. Xử lý từng trường riêng:
+    - `BatteryFlag = 128` là không có pin.
+    - `ACLineStatus = 255` là không rõ trạng thái sạc.
+    - `BatteryLifePercent = 255` là không rõ phần trăm.
+  - **Linux:** UPower qua `zbus`, giữ một kết nối **system bus** và đặt thời gian chờ. `OnBattery` lấy từ `org.freedesktop.UPower`, phần trăm lấy từ `DisplayDevice`. Chỉ coi là có pin khi `IsPresent` đúng **và** `Type` là pin hoặc UPS. Máy bàn vẫn có UPower nên không thể coi "có UPower" là "có pin" *(review)*.
+  - Bỏ phương án dự phòng `starship-battery` vì nó kéo thêm crate mới *(review)*.
+- `settings.json`:
+  - Hiện chỉ cần một giá trị lạ là cả file bị đọc lỗi và mọi cài đặt về mặc định (`settings.rs:86-87`).
+  - Kiểu `batteryGuard` sẽ đọc giá trị không biết thành `off`, để bản cũ hơn hay file sửa tay không xóa cài đặt khác *(review)*.
+  - Làm bằng `#[serde(other)]` trên biến thể `Off`, vì chỉ `#[serde(default)]` thì không đủ *(Codex)*.
+  - Cách này chỉ cứu trường `batteryGuard`. Giá trị lỗi ở trường khác vẫn làm file về mặc định như hiện nay.
+  - Cập nhật test `round_trip`. Thêm test đọc file cũ không có `batteryGuard`, và file có giá trị lạ *(Codex)*.
+- Logic quyết định là hàm thuần `battery_should_stop(guard, previous, current) -> Option<Reason>`. Unit test cho các trường hợp *(Codex: thêm các chuỗi nhiều bước)*:
+  - rút sạc;
+  - cắm lại;
+  - tụt qua 20% lúc chạy pin;
+  - tụt khi đang sạc;
+  - bật khi đã dưới ngưỡng;
+  - bật lúc chạy pin → cắm sạc → rút ra;
+  - dưới 20% → sạc lên trên 20% → tụt lại;
+  - một lần đọc lỗi xen giữa;
+  - chỉ biết trạng thái sạc mà không biết phần trăm;
+  - không có pin;
+  - không đọc được pin.
+
+### 11.4 Bản cho chip ARM (Windows và Linux)
+
+- **Thử trước trong CI** *(review)*. `ci.yml` thêm hai máy chạy thật bằng ARM, đều miễn phí cho repo công khai: `windows-11-arm` và `ubuntu-22.04-arm`. Cả hai chạy đủ format, clippy, test, build và chạy thử app. Như vậy lỗi ARM lộ ra ngay ở PR, không đợi tới ngày phát hành. Ví dụ, `ring` cần `clang` khi build cho Windows ARM.
+- `release.yml`:
+  - Build Windows ARM64 trên máy `windows-11-arm`. Chỉ ra bộ cài NSIS. Đây là chọn phạm vi cho gọn: bundler của Tauri CLI 2.12.4 có hỗ trợ MSI ARM64 trong mã nguồn, chỉ là chưa ai thử *(Codex)*. Dự phòng: build chéo trên `windows-latest` với `--target aarch64-pc-windows-msvc`.
+  - Build Linux ARM64 trên máy `ubuntu-22.04-arm`, ra AppImage, `.deb` và `.rpm`.
+  - Mỗi bản build có khóa cache Rust riêng (`key: ${{ matrix.name }}`).
+  - Bảng tải về trong ghi chú phát hành thêm các file ARM.
+- **Phát hành thử an toàn** *(review, Codex)*:
+  - Hiện mọi tag đều được đăng bằng `--latest` (`release.yml:108`), và bản đã cài lấy `latest.json` từ bản latest.
+  - Tách job `publish` làm hai *(Codex)*. Bước kiểm tra `latest.json` chạy với **mọi** tag. Chỉ bước đăng bản có điều kiện `!contains(github.ref_name, '-')`. Nếu bỏ qua cả job thì bản rc cũng bỏ qua luôn bước kiểm tra, và mất ý nghĩa thử.
+  - Bản thử như `v1.2.0-rc.1` vì vậy chỉ là bản nháp, không tới tay người dùng.
+  - Thay đổi này nằm trong PR 3 và phải merge trước khi đẩy tag rc.
+  - Ra `v1.2.0-rc.1` trước để kiểm tra đủ file và chữ ký, rồi mới ra `v1.2.0`.
+- **`latest.json` chỉ có một nơi ghi** *(Codex)*:
+  - tauri-action đọc `latest.json` cũ, xóa, rồi tải bản mới lên. 6 bản build chạy song song nên có thể đè lên nhau.
+  - Các job build đặt `uploadUpdaterJson: false`. Một job cuối, chạy sau khi mọi bản build xong, tự dựng `latest.json` từ các file `.sig` đã tải lên rồi mới tải nó lên. Dự phòng nếu cách này rắc rối: giữ tauri-action ghi, nhưng thêm bước kiểm tra dưới đây và chạy lại job bị thiếu.
+  - Khóa nền tảng: `darwin-aarch64`, `darwin-x86_64`, `linux-x86_64`, `windows-x86_64`, `windows-aarch64`, `linux-aarch64`. Tên file và khóa đã đối chiếu với mã nguồn tauri-action (`build.ts`, `upload-version-json.ts`):
+    - `KeepAwake_x_arm64-setup.exe`
+    - `_aarch64.AppImage`
+    - `_arm64.deb`
+    - `-1.aarch64.rpm`
+- **Bước kiểm tra `latest.json` chặt hơn** *(Codex)*. Hiện bước này chỉ xem chữ ký có rỗng không. Bản mới kiểm tra:
+  - `version` đúng với tag;
+  - đủ 6 khóa nền tảng;
+  - mỗi `url` trỏ tới đúng file có trong bản phát hành, đúng kiến trúc;
+  - mỗi `signature` trùng với nội dung file `.sig` đi kèm.
+- **Trang web và README:**
+  - Bảng tải về thêm các file ARM. Phần Cài đặt trên trang web thêm link ARM.
+  - Sửa chữ "x86_64" trong `site/main.js`.
+  - Nút tải chính vẫn là bản x64, vì trình duyệt trên Windows ARM thường tự báo là x64.
+  - Regex hiện tại không khớp tên file ARM, nên không bị lấy nhầm *(đã kiểm chứng)*.
+  - Lưu ý: bản x64 đang chạy giả lập trên máy ARM sẽ tiếp tục nhận bản cập nhật x64.
+- **Kênh phân phối:**
+  - winget thêm installer arm64, khai báo kiến trúc rõ ràng (`<url>|arm64`), vì bộ cài NSIS của bản ARM là file x86.
+  - Homebrew không đổi.
+  - **Bỏ AUR aarch64**, vì AUR chính thức chỉ có x86_64 *(review)*.
+
+### 11.5 Gập máy trên Linux (chỉ làm nếu cần)
+
+Chờ bạn thử. `LidSwitchIgnoreInhibited=yes` là mặc định của logind. Nhưng KDE PowerDevil, hoặc GNOME khi cắm màn hình ngoài, tự giữ quyền xử lý việc gập máy, nên mặc định đó chưa đủ để kết luận *(review)*. Nếu máy vẫn thức khi gập:
+- Đo trên cả GNOME và KDE bằng `systemd-inhibit --list` trước khi sửa.
+- **Không** bỏ thẳng cờ `FLAG_SUSPEND`, vì có thể làm KDE tự ngủ dù app đang bật.
+
+### 11.6 Thứ tự và phát hành
+
+1. **PR 1:** mục 11.0, 11.1 và 11.2, kèm kiểm tra cửa sổ vẫn vừa.
+2. **PR 2:** mục 11.3, kèm cập nhật `Cargo.lock`. Nếu phần Linux (UPower) gặp khó khi thử, tách ra làm sau, macOS và Windows ra trước *(review)*.
+3. **PR 3:** mục 11.4, gồm việc tách bước đăng bản. Phải merge trước khi đẩy tag rc *(Codex)*.
+4. **Mỗi PR:** review, sửa hết lỗi, CI đạt, bạn đồng ý mới merge. Thử tay trên macOS. Phần pin cần bạn rút sạc MacBook để thử.
+5. **Phát hành:**
+   - Tăng phiên bản ở `package.json`, `Cargo.toml` và `tauri.conf.json`. Cập nhật luôn `Cargo.lock` và `package-lock.json`, vì CI dùng `--locked` *(Codex)*. Viết CHANGELOG.
+   - Ra `v1.2.0-rc.1` để kiểm tra đủ 6 nền tảng có chữ ký trong `latest.json`.
+   - Ra `v1.2.0`.
+   - Cập nhật tap Homebrew, winget (hai link x64 và arm64) và PKGBUILD AUR (vẫn chỉ x86_64).
+   - Cập nhật danh sách tính năng trên trang web.
+
+### 11.7 Không làm trong v1.2
+
+- Nút "+15 phút" trong thông báo hết giờ: làm được nhưng phải bật phiên mới, để v1.3.
+- Chữ trên khay ở Linux và Windows.
+- Bản AUR cho aarch64.
+- Giữ thức theo app đang chạy, điều khiển bằng link hoặc dòng lệnh, lịch cố định: để v1.3.

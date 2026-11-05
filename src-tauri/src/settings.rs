@@ -46,6 +46,8 @@ pub struct Settings {
     pub use_custom: bool,
     pub mode: Mode,
     pub notify_when_done: bool,
+    /// Time left next to the tray icon. Only macOS can show it.
+    pub show_time_in_menu_bar: bool,
     pub shortcut: bool,
 }
 
@@ -59,6 +61,7 @@ impl Default for Settings {
             use_custom: false,
             mode: Mode::Display,
             notify_when_done: true,
+            show_time_in_menu_bar: true,
             // Off until asked for: Ctrl+Alt+K is AltGr+K on some Windows keyboard
             // layouts, and ⌥⌘K opens Firefox's Web Console.
             shortcut: false,
@@ -126,6 +129,7 @@ mod tests {
             use_custom: true,
             mode: Mode::System,
             notify_when_done: false,
+            show_time_in_menu_bar: false,
             shortcut: true,
         };
         save(&path, &settings).unwrap();
@@ -146,6 +150,10 @@ mod tests {
             "1.0 settings files get the new defaults"
         );
         assert!(!loaded.shortcut, "the shortcut stays off until switched on");
+        assert!(
+            loaded.show_time_in_menu_bar,
+            "1.1 settings files get the new default"
+        );
 
         for custom in [
             r#"{"kind": "minutes", "minutes": 0}"#,

@@ -6,8 +6,18 @@ All notable changes to KeepAwake are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- "+15 min" adds a quarter of an hour to a running timer, from the window or the
+  tray menu. It never takes the time left past 24 hours, and never shortens a timer.
+  The window now shows when the timer ends, e.g. "44:58 left · until 18:45".
+- On macOS the menu bar shows the time left next to the icon, e.g. `29m` or `1h05`.
+  It can be turned off in Settings.
+
 ### Fixed
 
+- If you added time or switched off and on again in the same second the timer ran
+  out, KeepAwake could switch off the session you had just set, and say time was up.
 - Linux: on GNOME and desktops built on it, such as Ubuntu and Zorin OS, the screen
   could still turn off while KeepAwake said it was on. KeepAwake now asks the GNOME
   session manager directly, and holds every other request the desktop accepts.

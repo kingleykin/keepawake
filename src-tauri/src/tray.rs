@@ -10,6 +10,7 @@ use crate::settings::DURATIONS;
 use crate::Snapshot;
 
 pub const MENU_TOGGLE: &str = "toggle";
+pub const MENU_EXTEND: &str = "extend";
 pub const MENU_OPEN: &str = "open";
 pub const MENU_SETTINGS: &str = "settings";
 pub const MENU_QUIT: &str = "quit";
@@ -31,6 +32,7 @@ struct Items {
     menu: Menu<Wry>,
     status: MenuItem<Wry>,
     toggle: CheckMenuItem<Wry>,
+    extend: MenuItem<Wry>,
     durations: Vec<(u32, CheckMenuItem<Wry>)>,
     custom: CheckMenuItem<Wry>,
 }
@@ -40,6 +42,8 @@ pub struct Tray {
     items: Items,
     language: Language,
     shown_active: Option<bool>,
+    #[cfg(target_os = "macos")]
+    shown_title: Option<String>,
 }
 
 fn icon(active: bool) -> tauri::Result<Image<'static>> {
@@ -53,6 +57,14 @@ fn build_items(app: &AppHandle, lang: Language) -> tauri::Result<Items> {
         MENU_TOGGLE,
         i18n::text(lang, Text::KeepAwake),
         true,
+        false,
+        None::<&str>,
+    )?;
+    // Tauri menus cannot hide an item, so this one is greyed out when there is no timer.
+    let extend = MenuItem::with_id(
+        app,
+        MENU_EXTEND,
+        i18n::text(lang, Text::AddTime),
         false,
         None::<&str>,
     )?;
@@ -103,7 +115,12 @@ fn build_items(app: &AppHandle, lang: Language) -> tauri::Result<Items> {
 
     let menu = Menu::with_items(
         app,
-        &[&status, &PredefinedMenuItem::separator(app)?, &toggle],
+        &[
+            &status,
+            &PredefinedMenuItem::separator(app)?,
+            &toggle,
+            &extend,
+        ],
     )?;
     menu.append(&PredefinedMenuItem::separator(app)?)?;
     for (_, item) in &durations {
@@ -122,6 +139,7 @@ fn build_items(app: &AppHandle, lang: Language) -> tauri::Result<Items> {
         menu,
         status,
         toggle,
+        extend,
         durations,
         custom,
     })
@@ -155,6 +173,8 @@ impl Tray {
             items,
             language: snap.language,
             shown_active: None,
+            #[cfg(target_os = "macos")]
+            shown_title: None,
         };
         tray.sync(app, snap);
         Ok(tray)
@@ -182,6 +202,7 @@ impl Tray {
         let _ = self.items.status.set_text(&status);
         let _ = self.icon.set_tooltip(Some(&status));
         let _ = self.items.toggle.set_checked(snap.active);
+        let _ = self.items.extend.set_enabled(snap.can_extend());
         for (minutes, item) in &self.items.durations {
             let _ = item.set_checked(!snap.use_custom && *minutes == snap.duration_min);
         }
@@ -198,6 +219,18 @@ impl Tray {
                     .icon
                     .set_icon_with_as_template(Some(image), IS_TEMPLATE);
                 self.shown_active = Some(snap.active);
+            }
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            let title = snap
+                .remaining_ms()
+                .filter(|_| snap.active && snap.show_time_in_menu_bar)
+                .map(i18n::menu_bar_time);
+            if title != self.shown_title {
+                let _ = self.icon.set_title(title.as_deref());
+                self.shown_title = title;
             }
         }
     }
