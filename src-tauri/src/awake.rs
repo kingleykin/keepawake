@@ -119,23 +119,47 @@ mod platform {
 
 #[cfg(target_os = "linux")]
 mod platform {
-    //! Tries the XDG desktop portal first, because GNOME and KDE honour it on
-    //! both Wayland and X11 for background apps. Falls back to the keepawake
-    //! crate, which uses org.freedesktop.ScreenSaver and systemd-logind.
+    //! Linux has no single API, and desktops honour different ones, so every
+    //! backend that answers holds its own request at the same time (in System
+    //! mode the crate is only a fallback, see `Inhibitor::new`):
+    //!
+    //! - the GNOME session manager, which GNOME, Zorin, Ubuntu, Cinnamon and
+    //!   MATE use to decide when to blank the screen and suspend;
+    //! - the XDG desktop portal, which KDE honours on Wayland and X11;
+    //! - the keepawake crate, which uses org.freedesktop.ScreenSaver and
+    //!   systemd-logind.
+    //!
+    //! The portal answers before its backend has acted and never reports a
+    //! refusal, so on its own it can claim success while the screen still
+    //! turns off. The session manager answers only once it holds the request.
 
     use std::collections::HashMap;
+    use std::panic::{catch_unwind, AssertUnwindSafe};
 
     use zbus::blocking::Connection;
     use zbus::zvariant::{OwnedObjectPath, Value};
 
-    use super::{builder, Mode, REASON};
+    use super::{builder, Mode, APP_ID, REASON};
 
+    const GNOME_SERVICE: &str = "org.gnome.SessionManager";
+    const GNOME_PATH: &str = "/org/gnome/SessionManager";
     const PORTAL_SERVICE: &str = "org.freedesktop.portal.Desktop";
     const PORTAL_PATH: &str = "/org/freedesktop/portal/desktop";
+    // The session manager and the portal share these values.
     const FLAG_SUSPEND: u32 = 4;
     const FLAG_IDLE: u32 = 8;
 
-    pub enum Inhibitor {
+    pub struct Inhibitor {
+        // If one release panics, the others are still dropped.
+        #[allow(dead_code)]
+        held: Vec<Held>,
+    }
+
+    enum Held {
+        Gnome {
+            conn: Connection,
+            cookie: u32,
+        },
         Portal {
             conn: Connection,
             handle: OwnedObjectPath,
@@ -145,22 +169,62 @@ mod platform {
 
     impl Inhibitor {
         pub fn new(mode: Mode) -> Result<Self, String> {
-            match portal(mode) {
-                Ok(inhibitor) => Ok(inhibitor),
-                Err(portal_err) => builder(mode)
-                    .create()
-                    .map(Inhibitor::Legacy)
-                    .map_err(|e| format!("{e} (desktop portal: {portal_err})")),
+            let mut attempts = vec![
+                ("GNOME session", gnome(mode).map_err(|e| e.to_string())),
+                ("desktop portal", portal(mode).map_err(|e| e.to_string())),
+            ];
+            // The crate's logind "idle" request also keeps the display on under
+            // KDE, so in System mode it is only a last resort.
+            if mode == Mode::Display || attempts.iter().all(|(_, result)| result.is_err()) {
+                attempts.push(("screen saver", legacy(mode)));
+            }
+            let mut held = Vec::new();
+            let mut errors = Vec::new();
+            for (name, result) in attempts {
+                match result {
+                    Ok(request) => held.push(request),
+                    Err(error) => errors.push(format!("{name}: {error}")),
+                }
+            }
+            if held.is_empty() {
+                Err(errors.join("; "))
+            } else {
+                Ok(Self { held })
             }
         }
     }
 
-    fn portal(mode: Mode) -> zbus::Result<Inhibitor> {
-        let conn = Connection::session()?;
-        let flags = match mode {
+    /// The crate panics while cleaning up after a half-made request. Catch it
+    /// here so the requests other backends already hold are kept.
+    fn legacy(mode: Mode) -> Result<Held, String> {
+        catch_unwind(AssertUnwindSafe(|| builder(mode).create()))
+            .map_err(|_| "the request panicked".to_string())?
+            .map(Held::Legacy)
+            .map_err(|e| e.to_string())
+    }
+
+    fn flags(mode: Mode) -> u32 {
+        match mode {
             Mode::Display => FLAG_IDLE | FLAG_SUSPEND,
             Mode::System => FLAG_SUSPEND,
-        };
+        }
+    }
+
+    fn gnome(mode: Mode) -> zbus::Result<Held> {
+        let conn = Connection::session()?;
+        let reply = conn.call_method(
+            Some(GNOME_SERVICE),
+            GNOME_PATH,
+            Some(GNOME_SERVICE),
+            "Inhibit",
+            &(APP_ID, 0u32, REASON, flags(mode)),
+        )?;
+        let cookie: u32 = reply.body().deserialize()?;
+        Ok(Held::Gnome { conn, cookie })
+    }
+
+    fn portal(mode: Mode) -> zbus::Result<Held> {
+        let conn = Connection::session()?;
         let mut options: HashMap<&str, Value> = HashMap::new();
         options.insert("reason", Value::from(REASON));
         let reply = conn.call_method(
@@ -168,22 +232,36 @@ mod platform {
             PORTAL_PATH,
             Some("org.freedesktop.portal.Inhibit"),
             "Inhibit",
-            &("", flags, options),
+            &("", flags(mode), options),
         )?;
         let handle: OwnedObjectPath = reply.body().deserialize()?;
-        Ok(Inhibitor::Portal { conn, handle })
+        Ok(Held::Portal { conn, handle })
     }
 
-    impl Drop for Inhibitor {
+    impl Drop for Held {
         fn drop(&mut self) {
-            if let Inhibitor::Portal { conn, handle } = self {
-                let _ = conn.call_method(
-                    Some(PORTAL_SERVICE),
-                    handle.as_str(),
-                    Some("org.freedesktop.portal.Request"),
-                    "Close",
-                    &(),
-                );
+            // Closing the connection afterwards releases the request too, so
+            // a failed call here leaves nothing behind.
+            match self {
+                Held::Gnome { conn, cookie } => {
+                    let _ = conn.call_method(
+                        Some(GNOME_SERVICE),
+                        GNOME_PATH,
+                        Some(GNOME_SERVICE),
+                        "Uninhibit",
+                        &(*cookie,),
+                    );
+                }
+                Held::Portal { conn, handle } => {
+                    let _ = conn.call_method(
+                        Some(PORTAL_SERVICE),
+                        handle.as_str(),
+                        Some("org.freedesktop.portal.Request"),
+                        "Close",
+                        &(),
+                    );
+                }
+                Held::Legacy(_) => {}
             }
         }
     }

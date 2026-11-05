@@ -111,9 +111,9 @@ App **không** chặn việc bạn chủ động cho máy ngủ, ví dụ gập 
 |---|---|---|
 | macOS | IOKit power assertion `PreventUserIdleSystemSleep` và `PreventUserIdleDisplaySleep` | `pmset -g assertions` |
 | Windows | `SetThreadExecutionState` với `ES_SYSTEM_REQUIRED`, thêm `ES_DISPLAY_REQUIRED` ở chế độ màn hình | `powercfg /requests` |
-| Linux | Thử XDG desktop portal `Inhibit` trước, sau đó `org.freedesktop.ScreenSaver` và systemd-logind | `systemd-inhibit --list` |
+| Linux | Dùng mọi dịch vụ trả lời: GNOME session manager, XDG desktop portal `Inhibit`, và `org.freedesktop.ScreenSaver` cùng systemd-logind (ở chế độ System chỉ khi hai cách kia lỗi) | `gnome-session-inhibit --list`, `systemd-inhibit --list` |
 
-**Lưu ý trên Linux.** GNOME và KDE hoạt động trên cả Wayland và X11 qua desktop portal. Một số compositor Wayland tối giản như Sway, Hyprland có thể bỏ qua yêu cầu này. Nếu không có dịch vụ nào chấp nhận, app hiện lỗi thay vì giả vờ đang chạy. Trên Linux, click trái vào icon khay sẽ mở menu.
+**Lưu ý trên Linux.** GNOME và các bản dựa trên GNOME như Ubuntu, Zorin OS hoạt động trên cả Wayland và X11 qua session manager. KDE hoạt động qua desktop portal. Một số compositor Wayland tối giản như Sway, Hyprland có thể bỏ qua yêu cầu này. Nếu không có dịch vụ nào chấp nhận, app hiện lỗi thay vì giả vờ đang chạy. Trên Linux, click trái vào icon khay sẽ mở menu.
 
 ## Câu hỏi thường gặp
 
