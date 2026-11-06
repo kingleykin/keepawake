@@ -26,6 +26,8 @@
     autostart: $("autostart"),
     closeToTray: $("close-to-tray"),
     notify: $("notify"),
+    batteryGuard: $("battery-guard"),
+    batteryNote: $("battery-note"),
     menuBarTimeOpt: $("menu-bar-time-opt"),
     menuBarTime: $("menu-bar-time"),
     shortcut: $("shortcut"),
@@ -117,6 +119,12 @@
     el.autostart.checked = state.autostart;
     el.closeToTray.checked = state.closeToTray;
     el.notify.checked = state.notifyWhenDone;
+    el.batteryGuard.value = state.batteryGuard;
+    // A desktop has nothing to guard. A battery that could not be read still
+    // lets the user choose, in case it works next time.
+    el.batteryGuard.disabled = state.battery === "absent";
+    el.batteryNote.hidden = state.battery === "present";
+    el.batteryNote.textContent = state.battery === "absent" ? t.batteryAbsent : t.batteryUnknown;
     // Only the macOS menu bar can show text next to the icon.
     el.menuBarTimeOpt.hidden = !IS_MAC;
     el.menuBarTime.checked = state.showTimeInMenuBar;
@@ -165,8 +173,13 @@
     } else if (state.active) {
       progress = 1;
       el.detail.textContent = t.noLimit;
+    } else if (failed) {
+      el.detail.textContent = state.error;
+    } else if (state.stoppedReason) {
+      el.detail.textContent =
+        state.stoppedReason === "lowBattery" ? t.stoppedLowBattery : t.stoppedUnplugged;
     } else {
-      el.detail.textContent = failed ? state.error : t.clickToStart;
+      el.detail.textContent = t.clickToStart;
     }
     el.detail.title = failed ? state.error : "";
     el.progress.style.strokeDashoffset = String(RING * (1 - progress));
@@ -209,11 +222,14 @@
     el.home.hidden = show;
     el.settings.hidden = !show;
     (show ? $("back") : $("open-settings")).focus();
-    // Look for a newer release each time Settings opens. Offline is fine.
-    if (show) invoke("check_update").then((next) => {
-      state = next;
-      render();
-    }, () => {});
+    if (!show) return;
+    // Look again at the battery, and for a newer release. Offline is fine.
+    for (const command of ["refresh_battery", "check_update"]) {
+      invoke(command).then((next) => {
+        state = next;
+        render();
+      }, () => {});
+    }
   }
 
   async function installUpdate() {
@@ -339,6 +355,9 @@
   );
   el.notify.addEventListener("change", () =>
     call("set_notify_when_done", { enabled: el.notify.checked })
+  );
+  el.batteryGuard.addEventListener("change", () =>
+    call("set_battery_guard", { guard: el.batteryGuard.value })
   );
   el.menuBarTime.addEventListener("change", () =>
     call("set_show_time_in_menu_bar", { enabled: el.menuBarTime.checked })

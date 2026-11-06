@@ -2159,6 +2159,8 @@ dependencies = [
  "chrono",
  "chrono-tz",
  "keepawake",
+ "objc2-core-foundation",
+ "objc2-io-kit",
  "serde",
  "serde_json",
  "tauri",
@@ -2169,6 +2171,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
+ "windows",
  "zbus",
 ]
 
