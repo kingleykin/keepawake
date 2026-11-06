@@ -2,12 +2,14 @@
 
 mod awake;
 mod i18n;
+mod power;
 mod settings;
 mod tray;
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, MutexGuard};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use chrono::{DateTime, Local, LocalResult, NaiveTime, TimeDelta, TimeZone};
 use serde::Serialize;
@@ -19,7 +21,8 @@ use tauri_plugin_updater::{Update, UpdaterExt};
 
 use awake::{Awake, Mode};
 use i18n::{Language, Text};
-use settings::{Custom, Settings, DURATIONS};
+use power::Power;
+use settings::{BatteryGuard, Custom, Settings, DURATIONS};
 
 /// Passed by the login item so a launch at login starts in the tray.
 const HIDDEN_ARG: &str = "--hidden";
@@ -32,6 +35,58 @@ const UPDATE_CHECK_DELAY: Duration = Duration::from_secs(5);
 const EXTEND_MS: u64 = 15 * 60_000;
 /// "+15 min" never takes the time left past a day.
 const MAX_REMAINING_MS: u64 = 24 * 3_600_000;
+/// How often the battery guard reads the battery while keep-awake is on.
+const POWER_CHECK_INTERVAL: Duration = Duration::from_secs(30);
+/// "Below 20%" means below this.
+const LOW_BATTERY_PERCENT: u8 = 20;
+
+/// Why the battery guard switched keep-awake off.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum StopReason {
+    Unplugged,
+    LowBattery,
+}
+
+/// Whether this computer has a battery, for the Settings page.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Battery {
+    Present,
+    Absent,
+    /// The battery could not be read.
+    #[default]
+    Unknown,
+}
+
+impl Battery {
+    fn of(reading: &Result<Option<Power>, String>) -> Self {
+        match reading {
+            Ok(Some(_)) => Battery::Present,
+            Ok(None) => Battery::Absent,
+            Err(_) => Battery::Unknown,
+        }
+    }
+}
+
+/// Whether `current`, read after `previous`, should switch keep-awake off.
+/// Only a change while on counts: unplugging, or dropping below 20% on battery
+/// from plugged in or from 20% or more. Starting below the line is the user's call.
+fn battery_should_stop(guard: BatteryGuard, previous: Power, current: Power) -> Option<StopReason> {
+    let on_battery = current.on_battery == Some(true);
+    match guard {
+        BatteryGuard::Off => None,
+        BatteryGuard::Unplugged => {
+            (previous.on_battery == Some(false) && on_battery).then_some(StopReason::Unplugged)
+        }
+        BatteryGuard::Below20 => {
+            let low = current.percent.is_some_and(|p| p < LOW_BATTERY_PERCENT);
+            let was_fine = previous.on_battery == Some(false)
+                || previous.percent.is_some_and(|p| p >= LOW_BATTERY_PERCENT);
+            (on_battery && low && was_fine).then_some(StopReason::LowBattery)
+        }
+    }
+}
 
 /// A running timer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -70,6 +125,10 @@ struct Session {
     /// Counts starts, so a decision made about an earlier session cannot stop a
     /// later one. Never goes back to zero.
     generation: u64,
+    /// The last battery reading that worked, for the battery guard to compare with.
+    power: Option<Power>,
+    /// Set when the battery guard switched off, until the next start.
+    stopped_reason: Option<StopReason>,
 }
 
 impl Session {
@@ -86,6 +145,7 @@ impl Session {
     fn renewed(&self, result: Result<(), String>) -> Self {
         Session {
             generation: self.generation,
+            power: self.power,
             ..Self::answered(result, self.countdown)
         }
     }
@@ -105,6 +165,43 @@ impl Session {
         }
         *self = self.stopped();
         true
+    }
+
+    /// Take a battery reading made for session `generation`, and switch off if
+    /// the guard says so. Returns why it switched off. A failed reading, or none
+    /// because there is no battery, changes nothing, so the next good one is
+    /// compared with the last good one.
+    fn check_battery(
+        &mut self,
+        generation: u64,
+        guard: BatteryGuard,
+        reading: &Result<Option<Power>, String>,
+    ) -> Option<StopReason> {
+        let &Ok(Some(current)) = reading else {
+            return None;
+        };
+        if !self.active || self.generation != generation {
+            return None;
+        }
+        let reason = self
+            .power
+            .and_then(|previous| battery_should_stop(guard, previous, current));
+        // What this reading could not tell is still known from the one before,
+        // so a reading without the charger state cannot hide an unplug.
+        self.power = Some(match self.power {
+            Some(previous) => Power {
+                on_battery: current.on_battery.or(previous.on_battery),
+                percent: current.percent.or(previous.percent),
+            },
+            None => current,
+        });
+        if reason.is_some() {
+            *self = Session {
+                stopped_reason: reason,
+                ..self.stopped()
+            };
+        }
+        reason
     }
 
     /// Add up to 15 minutes to a running timer. Returns whether anything was added.
@@ -158,6 +255,13 @@ struct AppState {
     /// A newer release found by the last check. Only installed when the user asks.
     update: Mutex<Option<Update>>,
     tray: Mutex<Option<tray::Tray>>,
+    battery: Mutex<Battery>,
+    /// Goes up when the battery guard setting changes, so a reading taken under
+    /// the old setting is dropped.
+    guard_revision: AtomicU64,
+    /// Held while a battery reading is taken and used, so readings are used in
+    /// the order they were taken.
+    power_check: Mutex<()>,
 }
 
 /// Everything the window and tray need to draw themselves.
@@ -178,6 +282,9 @@ pub struct Snapshot {
     pub notify_when_done: bool,
     pub show_time_in_menu_bar: bool,
     pub shortcut: bool,
+    pub battery_guard: BatteryGuard,
+    pub battery: Battery,
+    pub stopped_reason: Option<StopReason>,
     pub shortcut_error: Option<String>,
     /// Global shortcuts may never fire here, although registering them succeeds.
     pub shortcut_may_fail: bool,
@@ -282,6 +389,7 @@ fn snapshot(app: &AppHandle) -> Snapshot {
     let autostart = *lock(&state.autostart);
     let shortcut_error = lock(&state.shortcut_error).clone();
     let update = lock(&state.update).as_ref().map(|u| u.version.clone());
+    let battery = *lock(&state.battery);
     let session = lock(&state.session);
     let snap = Snapshot {
         active: session.active,
@@ -298,6 +406,9 @@ fn snapshot(app: &AppHandle) -> Snapshot {
         notify_when_done: settings.notify_when_done,
         show_time_in_menu_bar: settings.show_time_in_menu_bar,
         shortcut: settings.shortcut,
+        battery_guard: settings.battery_guard,
+        battery,
+        stopped_reason: session.stopped_reason,
         shortcut_error,
         shortcut_may_fail: on_wayland(),
         update,
@@ -345,8 +456,16 @@ fn start(app: &AppHandle) {
 fn start_locked(state: &AppState) {
     let settings = lock(&state.settings).clone();
     let result = state.awake.acquire(settings.mode);
+    // The battery guard compares later readings with this one.
+    let reading = (settings.battery_guard != BatteryGuard::Off).then(power::read);
+    if let Some(reading) = &reading {
+        *lock(&state.battery) = Battery::of(reading);
+    }
     let mut session = lock(&state.session);
     *session = session.started(result, countdown(&settings, &Local::now()));
+    if session.active {
+        session.power = reading.and_then(|r| r.ok().flatten());
+    }
 }
 
 /// Hand the OS a request for the current mode, keeping the running timer.
@@ -402,6 +521,65 @@ fn stop_if_time_is_up(app: &AppHandle, generation: u64) -> bool {
     expired
 }
 
+/// Read the battery and let the guard switch off if it should. Reads without
+/// holding `op`, so the reading is dropped if the session or the guard setting
+/// changed meanwhile. A failed reading changes nothing. With `wait` false, does
+/// nothing while another reading is under way.
+fn check_power(app: &AppHandle, wait: bool) {
+    let state = app.state::<AppState>();
+    let _check = if wait {
+        lock(&state.power_check)
+    } else {
+        match state.power_check.try_lock() {
+            Ok(guard) => guard,
+            Err(std::sync::TryLockError::Poisoned(poisoned)) => poisoned.into_inner(),
+            Err(std::sync::TryLockError::WouldBlock) => return,
+        }
+    };
+    let generation = lock(&state.session).generation;
+    let revision = state.guard_revision.load(Ordering::SeqCst);
+    let reading = power::read();
+    if let Err(e) = &reading {
+        eprintln!("could not read the battery: {e}");
+    }
+    let reason = {
+        let _op = lock(&state.op);
+        let mut session = lock(&state.session);
+        // A start since then took a newer reading of its own.
+        if session.generation != generation
+            || state.guard_revision.load(Ordering::SeqCst) != revision
+        {
+            return;
+        }
+        *lock(&state.battery) = Battery::of(&reading);
+        let guard = lock(&state.settings).battery_guard;
+        let reason = session.check_battery(generation, guard, &reading);
+        if reason.is_some() {
+            state.awake.release();
+        }
+        reason
+    };
+    if let Some(reason) = reason {
+        publish(app);
+        notify_off(
+            app,
+            match reason {
+                StopReason::Unplugged => Text::Unplugged,
+                StopReason::LowBattery => Text::LowBattery,
+            },
+        );
+    }
+}
+
+/// Change the battery guard. The next reading starts a fresh comparison.
+fn select_battery_guard(app: &AppHandle, guard: BatteryGuard) {
+    let state = app.state::<AppState>();
+    let _op = lock(&state.op);
+    update_settings(app, |s| s.battery_guard = guard);
+    state.guard_revision.fetch_add(1, Ordering::SeqCst);
+    lock(&state.session).power = None;
+}
+
 /// Add up to 15 minutes to the running timer.
 fn extend(app: &AppHandle) {
     let state = app.state::<AppState>();
@@ -452,8 +630,8 @@ fn select_custom(app: &AppHandle, custom: Custom) -> Result<(), String> {
     Ok(())
 }
 
-/// Tell the user that keep-awake switched itself off, if they want to know.
-fn notify_time_up(app: &AppHandle) {
+/// Tell the user that keep-awake switched itself off, and why, if they want to know.
+fn notify_off(app: &AppHandle, why: Text) {
     let settings = lock(&app.state::<AppState>().settings).clone();
     if !settings.notify_when_done {
         return;
@@ -462,7 +640,7 @@ fn notify_time_up(app: &AppHandle) {
         .notification()
         .builder()
         .title("KeepAwake")
-        .body(i18n::text(settings.language, Text::TimeUp))
+        .body(i18n::text(settings.language, why))
         .show();
     if let Err(e) = shown {
         eprintln!("could not show the notification: {e}");
@@ -590,20 +768,31 @@ pub(crate) fn on_menu(app: &AppHandle, id: &str) {
 fn spawn_timer(app: AppHandle) {
     std::thread::Builder::new()
         .name("timer".into())
-        .spawn(move || loop {
-            std::thread::sleep(Duration::from_secs(1));
-            let snap = snapshot(&app);
-            match snap.ends_at_ms {
-                Some(end) if snap.active && now_ms() >= end => {
-                    // Whoever added time or started over has already published.
-                    if stop_if_time_is_up(&app, snap.generation) {
-                        publish(&app);
-                        notify_time_up(&app);
-                    }
+        .spawn(move || {
+            let mut next_power_check = Instant::now();
+            loop {
+                std::thread::sleep(Duration::from_secs(1));
+                let snap = snapshot(&app);
+                // Off the timer thread, so a slow battery reading never holds up the countdown.
+                if snap.active
+                    && snap.battery_guard != BatteryGuard::Off
+                    && Instant::now() >= next_power_check
+                {
+                    next_power_check = Instant::now() + POWER_CHECK_INTERVAL;
+                    in_background(&app, |app| check_power(app, false));
                 }
-                // Keep the countdown in the tray menu ticking.
-                Some(_) if snap.active => refresh_tray(&app),
-                _ => {}
+                match snap.ends_at_ms {
+                    Some(end) if snap.active && now_ms() >= end => {
+                        // Whoever added time or started over has already published.
+                        if stop_if_time_is_up(&app, snap.generation) {
+                            publish(&app);
+                            notify_off(&app, Text::TimeUp);
+                        }
+                    }
+                    // Keep the countdown in the tray menu ticking.
+                    Some(_) if snap.active => refresh_tray(&app),
+                    _ => {}
+                }
             }
         })
         .expect("failed to start the timer thread");
@@ -679,6 +868,20 @@ async fn set_show_time_in_menu_bar(app: AppHandle, enabled: bool) -> Snapshot {
 async fn set_shortcut(app: AppHandle, enabled: bool) -> Snapshot {
     update_settings(&app, |s| s.shortcut = enabled);
     apply_shortcut(&app);
+    publish(&app)
+}
+
+#[tauri::command]
+async fn set_battery_guard(app: AppHandle, guard: BatteryGuard) -> Snapshot {
+    select_battery_guard(&app, guard);
+    check_power(&app, true);
+    publish(&app)
+}
+
+/// Look at the battery again, e.g. when Settings opens.
+#[tauri::command]
+async fn refresh_battery(app: AppHandle) -> Snapshot {
+    check_power(&app, true);
     publish(&app)
 }
 
@@ -761,6 +964,9 @@ pub fn run() {
                 shortcut_error: Mutex::new(None),
                 update: Mutex::new(None),
                 tray: Mutex::new(None),
+                battery: Mutex::new(Battery::Unknown),
+                guard_revision: AtomicU64::new(0),
+                power_check: Mutex::new(()),
             });
 
             let handle = app.handle().clone();
@@ -769,6 +975,7 @@ pub fn run() {
             spawn_timer(handle.clone());
             in_background(&handle, |app| {
                 apply_shortcut(app);
+                check_power(app, true);
                 publish(app);
             });
             let checker = handle.clone();
@@ -813,6 +1020,8 @@ pub fn run() {
             set_notify_when_done,
             set_show_time_in_menu_bar,
             set_shortcut,
+            set_battery_guard,
+            refresh_battery,
             check_update,
             install_update,
             hide_to_tray,
@@ -1152,6 +1361,221 @@ mod tests {
         assert_eq!(
             countdown(&settings, &now).map(|c| c.total_ms),
             Some(15 * 60_000)
+        );
+    }
+
+    // ---- battery guard ----
+
+    fn plugged(percent: u8) -> Power {
+        Power {
+            on_battery: Some(false),
+            percent: Some(percent),
+        }
+    }
+
+    fn battery(percent: u8) -> Power {
+        Power {
+            on_battery: Some(true),
+            percent: Some(percent),
+        }
+    }
+
+    fn ok(power: Power) -> Result<Option<Power>, String> {
+        Ok(Some(power))
+    }
+
+    /// Feeds `readings` to a session started with the first one, and returns
+    /// why it switched off, if it did, with the reading that did it.
+    fn run(guard: BatteryGuard, readings: &[Power]) -> Option<(StopReason, usize)> {
+        let mut session = Session::default().started(Ok(()), None);
+        session.power = Some(readings[0]);
+        for (i, &reading) in readings.iter().enumerate().skip(1) {
+            if let Some(reason) = session.check_battery(session.generation, guard, &ok(reading)) {
+                assert!(!session.active);
+                assert_eq!(session.stopped_reason, Some(reason));
+                return Some((reason, i));
+            }
+        }
+        assert!(session.active);
+        None
+    }
+
+    #[test]
+    fn unplugging_switches_off() {
+        use BatteryGuard::*;
+        assert_eq!(
+            run(Unplugged, &[plugged(80), battery(80)]),
+            Some((StopReason::Unplugged, 1))
+        );
+        assert_eq!(
+            run(Unplugged, &[battery(80), plugged(80)]),
+            None,
+            "plugging in"
+        );
+        assert_eq!(run(Off, &[plugged(80), battery(80)]), None, "guard off");
+        assert_eq!(
+            run(Below20, &[plugged(80), battery(80)]),
+            None,
+            "unplugging above 20% is fine for the 20% guard"
+        );
+    }
+
+    #[test]
+    fn dropping_below_twenty_percent_on_battery_switches_off() {
+        use BatteryGuard::Below20;
+        assert_eq!(
+            run(Below20, &[battery(21), battery(20), battery(19)]),
+            Some((StopReason::LowBattery, 2))
+        );
+        assert_eq!(
+            run(Below20, &[plugged(25), plugged(15)]),
+            None,
+            "the battery may drop while plugged in"
+        );
+        assert_eq!(
+            run(Below20, &[plugged(15), battery(15)]),
+            Some((StopReason::LowBattery, 1)),
+            "unplugging when already low"
+        );
+    }
+
+    #[test]
+    fn starting_below_the_line_is_the_users_call() {
+        use BatteryGuard::*;
+        assert_eq!(run(Below20, &[battery(15), battery(14), battery(10)]), None);
+        assert_eq!(run(Unplugged, &[battery(50), battery(40)]), None);
+    }
+
+    #[test]
+    fn the_guard_compares_with_the_reading_just_before() {
+        use BatteryGuard::*;
+        assert_eq!(
+            run(Unplugged, &[battery(60), plugged(61), battery(61)]),
+            Some((StopReason::Unplugged, 2)),
+            "on battery, plugged in, then unplugged again"
+        );
+        assert_eq!(
+            run(
+                Below20,
+                &[
+                    battery(15),
+                    plugged(20),
+                    plugged(25),
+                    battery(25),
+                    battery(19)
+                ]
+            ),
+            Some((StopReason::LowBattery, 4)),
+            "charged back above the line, then dropped again"
+        );
+    }
+
+    #[test]
+    fn readings_that_say_too_little_never_switch_off() {
+        use BatteryGuard::*;
+        let charger_only = |on_battery| Power {
+            on_battery: Some(on_battery),
+            percent: None,
+        };
+        assert_eq!(
+            run(Unplugged, &[charger_only(false), charger_only(true)]),
+            Some((StopReason::Unplugged, 1)),
+            "the charger state is enough to see an unplug"
+        );
+        assert_eq!(
+            run(Below20, &[charger_only(false), charger_only(true)]),
+            None,
+            "but not to see a low battery"
+        );
+        let unknown = Power {
+            on_battery: None,
+            percent: Some(5),
+        };
+        assert_eq!(run(Below20, &[battery(30), unknown]), None);
+        assert_eq!(run(Unplugged, &[plugged(30), unknown]), None);
+        assert_eq!(
+            run(Unplugged, &[plugged(30), unknown, battery(30)]),
+            Some((StopReason::Unplugged, 2)),
+            "a reading without the charger state does not hide an unplug"
+        );
+        assert_eq!(
+            run(Below20, &[battery(30), charger_only(true), battery(15)]),
+            Some((StopReason::LowBattery, 2)),
+            "nor does one without the charge hide a drop"
+        );
+    }
+
+    #[test]
+    fn a_failed_reading_keeps_the_last_good_one() {
+        let mut session = Session::default().started(Ok(()), None);
+        session.power = Some(plugged(50));
+        let generation = session.generation;
+        let guard = BatteryGuard::Unplugged;
+        assert_eq!(
+            session.check_battery(generation, guard, &Err("timed out".into())),
+            None
+        );
+        assert_eq!(session.check_battery(generation, guard, &Ok(None)), None);
+        assert_eq!(session.power, Some(plugged(50)));
+        assert!(session.active, "a failed reading never switches off");
+        assert_eq!(
+            session.check_battery(generation, guard, &ok(battery(50))),
+            Some(StopReason::Unplugged),
+            "compared with the plugged-in reading from before the failures"
+        );
+    }
+
+    #[test]
+    fn without_a_first_reading_the_next_one_only_sets_the_baseline() {
+        let mut session = Session::default().started(Ok(()), None);
+        let generation = session.generation;
+        assert_eq!(
+            session.check_battery(generation, BatteryGuard::Unplugged, &ok(battery(50))),
+            None
+        );
+        assert_eq!(session.power, Some(battery(50)));
+        assert!(session.active);
+    }
+
+    #[test]
+    fn a_reading_for_an_earlier_session_is_dropped() {
+        let first = Session::default().started(Ok(()), None);
+        let mut session = first.stopped().started(Ok(()), None);
+        session.power = Some(plugged(50));
+        assert_eq!(
+            session.check_battery(first.generation, BatteryGuard::Unplugged, &ok(battery(50))),
+            None
+        );
+        assert!(session.active);
+        assert_eq!(session.power, Some(plugged(50)), "and not kept");
+
+        let mut off = session.stopped();
+        assert_eq!(
+            off.check_battery(off.generation, BatteryGuard::Unplugged, &ok(battery(50))),
+            None,
+            "nothing to switch off"
+        );
+    }
+
+    #[test]
+    fn renewing_keeps_the_battery_reading_and_starting_clears_the_reason() {
+        let mut session = Session::default().started(Ok(()), None);
+        session.power = Some(plugged(50));
+        assert_eq!(session.renewed(Ok(())).power, Some(plugged(50)));
+
+        let generation = session.generation;
+        session.check_battery(generation, BatteryGuard::Unplugged, &ok(battery(50)));
+        assert_eq!(session.stopped_reason, Some(StopReason::Unplugged));
+        let again = session.started(Ok(()), None);
+        assert_eq!(again.stopped_reason, None);
+        assert_eq!(
+            again.power, None,
+            "a reading never carries into a new session"
+        );
+        assert_eq!(
+            session.stopped().stopped_reason,
+            None,
+            "switching off by hand clears it"
         );
     }
 }
