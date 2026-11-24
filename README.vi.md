@@ -27,7 +27,8 @@
 ## Chức năng
 
 - **Một cú bấm.** Bấm nút tròn lớn, hoặc click trái vào icon trên khay (macOS và Windows).
-- **Hẹn giờ.** 15 phút, 30 phút, 1 giờ, 2 giờ, 4 giờ, vô hạn, hoặc tùy chỉnh: số phút bất kỳ, hoặc "đến 18:30". Hết giờ tự tắt và báo bằng thông báo.
+- **Hẹn giờ.** 15 phút, 30 phút, 1 giờ, 2 giờ, 4 giờ, vô hạn, hoặc tùy chỉnh: số phút bất kỳ, hoặc "đến 18:30". Hết giờ tự tắt và báo bằng thông báo. Nút "+15 phút" thêm giờ cho hẹn giờ đang chạy, và trên macOS thanh menu hiện thời gian còn lại.
+- **Bảo vệ pin.** Có thể tự tắt khi rút sạc, hoặc khi pin xuống dưới 20%. Mặc định tắt.
 - **Phím tắt.** ⌥⌘K trên macOS, Ctrl+Alt+K trên Windows và Linux, dùng được từ mọi ứng dụng. Mặc định tắt, bật trong Cài đặt.
 - **Hai chế độ.** Giữ cả màn hình, hoặc chỉ giữ hệ thống và cho phép màn hình tắt.
 - **Nằm ở khay hệ thống.** Menu hiện thời gian còn lại. Chọn một mốc thời gian trong menu sẽ bật luôn.
@@ -149,7 +150,9 @@ Không. App chỉ kết nối mạng để kiểm tra bản mới (tải file `l
 |---|---|---|
 | Khởi động cùng hệ thống | Tắt | Chạy ẩn ở khay. |
 | Nút đóng sẽ ẩn xuống tray | Bật | Nếu tắt, đóng cửa sổ là thoát app. |
-| Báo khi hết giờ | Bật | Một thông báo khi hết giờ và app tự tắt giữ thức. |
+| Thông báo khi KeepAwake tự tắt | Bật | Một thông báo khi hết giờ hoặc khi bảo vệ pin tự tắt giữ thức. |
+| Khi dùng pin | Vẫn giữ thức | Hoặc tự tắt khi rút sạc, hoặc khi pin xuống dưới 20% lúc đang chạy pin. Chỉ tính khi tình trạng thay đổi lúc KeepAwake đang bật, nên bật khi pin đã yếu vẫn được. Bị mờ trên máy không có pin. |
+| Hiện thời gian trên thanh menu | Bật | Chỉ macOS. |
 | Phím tắt | Tắt | ⌥⌘K / Ctrl+Alt+K. Mặc định tắt vì tổ hợp này có nghĩa khác ở một số nơi: Ctrl+Alt+K là AltGr+K trên một số bàn phím Windows, còn ⌥⌘K mở Web Console của Firefox. Nếu ứng dụng khác đã dùng tổ hợp này, Cài đặt sẽ báo và app vẫn chạy bình thường. |
 | Ngôn ngữ | Tiếng Anh | Tiếng Anh hoặc tiếng Việt. |
 

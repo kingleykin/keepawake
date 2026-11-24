@@ -33,7 +33,8 @@
 ## Features
 
 - **One click.** Press the big button, or left-click the tray icon on macOS and Windows.
-- **Timer.** 15 min, 30 min, 1 h, 2 h, 4 h, no limit, or a custom time: any number of minutes, or "until 18:30". It switches itself off when time is up and tells you with a notification.
+- **Timer.** 15 min, 30 min, 1 h, 2 h, 4 h, no limit, or a custom time: any number of minutes, or "until 18:30". It switches itself off when time is up and tells you with a notification. "+15 min" adds time to a running timer, and on macOS the menu bar shows the time left.
+- **Battery guard.** Optionally switch off when the charger is unplugged, or when the battery drops below 20%. Off by default.
 - **Keyboard shortcut.** ⌥⌘K on macOS, Ctrl+Alt+K on Windows and Linux, from any app. Off by default; switch it on in Settings.
 - **Two modes.** Keep the display on, or keep only the system awake and let the screen turn off.
 - **Lives in the tray.** The menu shows the countdown and lets you pick a time, which also switches keep-awake on.
@@ -155,7 +156,9 @@ No. KeepAwake only goes online to check for updates, by downloading `latest.json
 |---|---|---|
 | Launch at login | Off | Starts hidden in the tray. |
 | Close button hides to tray | On | Otherwise closing the window quits. |
-| Notify when time is up | On | One notification when the timer switches keep-awake off. |
+| Notify when KeepAwake switches off | On | One notification when the timer runs out or the battery guard switches keep-awake off. |
+| On battery | Keep awake | Or switch off when the charger is unplugged, or when the battery drops below 20% while on battery. Only a change while KeepAwake is on counts, so switching it on when already low works. Greyed out on computers without a battery. |
+| Show time left in the menu bar | On | macOS only. |
 | Shortcut | Off | ⌥⌘K / Ctrl+Alt+K. Off by default because these keys mean something else in some places: Ctrl+Alt+K is AltGr+K on some Windows keyboard layouts, and ⌥⌘K opens Firefox's Web Console. If another app holds these keys, Settings shows a warning and the rest of the app works as usual. |
 | Language | English | English or Vietnamese. |
 
@@ -198,6 +201,7 @@ cd src-tauri && cargo test -- --ignored
 src/                 window: plain HTML, CSS and JavaScript, no framework
 src-tauri/src/
   awake.rs           talks to the operating system, on one dedicated thread
+  power.rs           reads the battery for the battery guard
   tray.rs            tray icon and menu
   settings.rs        settings saved as JSON
   i18n.rs            tray menu text in English and Vietnamese

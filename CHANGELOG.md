@@ -13,6 +13,10 @@ All notable changes to KeepAwake are listed here. The format follows
   The window now shows when the timer ends, e.g. "44:58 left · until 18:45".
 - On macOS the menu bar shows the time left next to the icon, e.g. `29m` or `1h05`.
   It can be turned off in Settings.
+- Battery guard: Settings → "On battery" can switch keep-awake off when the charger
+  is unplugged, or when the battery drops below 20% while on battery. It is off by
+  default, and only a change while KeepAwake is on counts. The window says why it
+  switched off. The notification setting is now "Notify when KeepAwake switches off".
 
 ### Fixed
 

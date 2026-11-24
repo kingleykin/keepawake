@@ -15,6 +15,22 @@ const DEFAULT_DURATION: u32 = 60;
 /// Longest custom timer: one day.
 pub const MAX_CUSTOM_MIN: u32 = 24 * 60;
 
+/// What to do when the computer runs on battery.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BatteryGuard {
+    /// Switch off when the charger is unplugged.
+    Unplugged,
+    /// Switch off when the battery drops below 20% while on battery.
+    Below20,
+    /// Keep awake anyway. Also what an unknown value from a newer or
+    /// hand-edited file means, so it does not reset the other settings.
+    /// Serde needs this catch-all last.
+    #[default]
+    #[serde(other)]
+    Off,
+}
+
 /// A time the user typed in instead of picking a preset.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
@@ -49,6 +65,7 @@ pub struct Settings {
     /// Time left next to the tray icon. Only macOS can show it.
     pub show_time_in_menu_bar: bool,
     pub shortcut: bool,
+    pub battery_guard: BatteryGuard,
 }
 
 impl Default for Settings {
@@ -65,6 +82,7 @@ impl Default for Settings {
             // Off until asked for: Ctrl+Alt+K is AltGr+K on some Windows keyboard
             // layouts, and ⌥⌘K opens Firefox's Web Console.
             shortcut: false,
+            battery_guard: BatteryGuard::Off,
         }
     }
 }
@@ -131,6 +149,7 @@ mod tests {
             notify_when_done: false,
             show_time_in_menu_bar: false,
             shortcut: true,
+            battery_guard: BatteryGuard::Below20,
         };
         save(&path, &settings).unwrap();
         assert_eq!(load(&path), settings);
@@ -154,6 +173,11 @@ mod tests {
             loaded.show_time_in_menu_bar,
             "1.1 settings files get the new default"
         );
+        assert_eq!(
+            loaded.battery_guard,
+            BatteryGuard::Off,
+            "1.1 settings files keep awake on battery as before"
+        );
 
         for custom in [
             r#"{"kind": "minutes", "minutes": 0}"#,
@@ -170,6 +194,21 @@ mod tests {
             assert_eq!(loaded.custom, None, "{custom}");
             assert!(!loaded.use_custom, "{custom}");
         }
+
+        fs::write(&path, r#"{"batteryGuard": "below5", "language": "vi"}"#).unwrap();
+        let loaded = load(&path);
+        assert_eq!(
+            loaded.battery_guard,
+            BatteryGuard::Off,
+            "an unknown value means off"
+        );
+        assert_eq!(
+            loaded.language,
+            Language::Vi,
+            "and the rest of the file still counts"
+        );
+        fs::write(&path, r#"{"batteryGuard": "unplugged"}"#).unwrap();
+        assert_eq!(load(&path).battery_guard, BatteryGuard::Unplugged);
 
         fs::write(&path, "not json").unwrap();
         assert_eq!(load(&path), Settings::default());

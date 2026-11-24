@@ -20,6 +20,8 @@ pub enum Text {
     Custom,
     AddTime,
     TimeUp,
+    Unplugged,
+    LowBattery,
 }
 
 pub fn text(lang: Language, key: Text) -> &'static str {
@@ -40,6 +42,10 @@ pub fn text(lang: Language, key: Text) -> &'static str {
         (Vi, AddTime) => "Thêm 15 phút",
         (En, TimeUp) => "KeepAwake is off, your computer may sleep again",
         (Vi, TimeUp) => "KeepAwake đã tắt, máy có thể ngủ lại",
+        (En, Unplugged) => "KeepAwake switched off because the charger was unplugged",
+        (Vi, Unplugged) => "KeepAwake đã tự tắt vì máy đã rút sạc",
+        (En, LowBattery) => "KeepAwake switched off because the battery is below 20%",
+        (Vi, LowBattery) => "KeepAwake đã tự tắt vì pin dưới 20%",
     }
 }
 

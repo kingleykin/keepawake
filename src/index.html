@@ -74,6 +74,17 @@
       <span data-i18n="notifyWhenDone"></span>
       <input id="notify" class="switch" type="checkbox" role="switch">
     </label>
+    <label class="opt">
+      <span>
+        <span data-i18n="batteryGuard"></span>
+        <small id="battery-note" class="note-line" hidden></small>
+      </span>
+      <select id="battery-guard">
+        <option value="off" data-i18n="batteryOff"></option>
+        <option value="unplugged" data-i18n="batteryUnplugged"></option>
+        <option value="below20" data-i18n="batteryBelow20"></option>
+      </select>
+    </label>
     <label id="menu-bar-time-opt" class="opt" hidden>
       <span data-i18n="menuBarTime"></span>
       <input id="menu-bar-time" class="switch" type="checkbox" role="switch">
