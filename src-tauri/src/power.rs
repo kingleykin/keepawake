@@ -258,12 +258,17 @@ mod tests {
     use super::*;
 
     /// Prints what this computer reports. Run with `cargo test -- --ignored`.
+    /// A machine without a battery service, like a CI runner, may answer with
+    /// an error, but it must answer rather than hang.
     #[test]
     #[ignore = "reads the real battery"]
     fn reads_this_computer() {
         let reading = read();
         eprintln!("{reading:?}");
-        assert!(reading.is_ok(), "{reading:?}");
+        assert!(
+            !matches!(&reading, Err(e) if e.contains("timed out")),
+            "{reading:?}"
+        );
     }
 
     #[test]
