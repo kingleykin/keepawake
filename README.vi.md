@@ -104,7 +104,7 @@ Fedora:
 sudo dnf install ./KeepAwake-*.x86_64.rpm
 ```
 
-Máy ARM64, ví dụ Raspberry Pi 4 hoặc 5 chạy hệ 64-bit, thì dùng các file có đuôi `_aarch64.AppImage`, `_arm64.deb` hoặc `.aarch64.rpm`.
+Máy ARM64 thì dùng các file có đuôi `_aarch64.AppImage`, `_arm64.deb` hoặc `.aarch64.rpm`, và trong các lệnh trên thay `amd64` và `x86_64` bằng `aarch64` hoặc `arm64`. Hệ điều hành cần mới bằng Ubuntu 22.04 trở lên, ví dụ Raspberry Pi OS Bookworm 64-bit trên Raspberry Pi 4 hoặc 5.
 
 GNOME gốc ẩn icon khay. Cài [AppIndicator extension](https://extensions.gnome.org/extension/615/appindicator-support/) để thấy icon KeepAwake. Ubuntu đã có sẵn.
 

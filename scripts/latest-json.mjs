@@ -1,14 +1,18 @@
 #!/usr/bin/env node
 // Writes and checks latest.json, the file installed copies read to find updates.
 //
-//   node scripts/latest-json.mjs write <version> <release.json> <sig dir>  > latest.json
-//   node scripts/latest-json.mjs check <version> <release.json> <sig dir> <latest.json>
+//   node scripts/latest-json.mjs write <version> <release.json> <dir>  > latest.json
+//   node scripts/latest-json.mjs check <version> <release.json> <dir> <latest.json>
 //
-// release.json is the release as the GitHub API returns it. The sig dir holds
-// every .sig file of that release, under its own name. The release workflow
-// writes latest.json once, after every build has uploaded its files, so the
-// builds cannot overwrite each other's entries.
+// release.json is the release as the GitHub API returns it. The dir holds the
+// release's files under their own names: the .sig files to write, and also the
+// update files to check. The check verifies each signature with the public key
+// in tauri.conf.json, the same way installed copies do, so a wrong signing key
+// stops the release instead of every update. The release workflow writes
+// latest.json once, after every build has uploaded its files, so the builds
+// cannot overwrite each other's entries.
 
+import { createHash, createPublicKey, verify } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -78,6 +82,37 @@ function expected(version, release, sigDir, problems) {
   return platforms;
 }
 
+// Tauri signs with minisign. Both the key and the signature are base64 of a
+// minisign text file: a comment line, then base64 of the algorithm (2 bytes),
+// the key id (8 bytes) and the key or signature.
+function minisign(base64) {
+  const lines = Buffer.from(base64, "base64").toString("utf8").split("\n");
+  return { lines, data: Buffer.from(lines[1] ?? "", "base64") };
+}
+
+function publicKey() {
+  const config = JSON.parse(readFileSync(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"));
+  const { data } = minisign(config.plugins.updater.pubkey);
+  if (data.length !== 42 || data.subarray(0, 2).toString() !== "Ed") throw new Error("the updater pubkey is not a minisign key");
+  const spki = Buffer.concat([Buffer.from("302a300506032b6570032100", "hex"), data.subarray(10)]);
+  return { id: data.subarray(2, 10), key: createPublicKey({ key: spki, format: "der", type: "spki" }) };
+}
+
+// Returns a problem, or null when the signature is good for the file.
+function badSignature(signature, file, pub) {
+  const { lines, data } = minisign(signature);
+  if (data.length !== 74) return "is not a minisign signature";
+  const algorithm = data.subarray(0, 2).toString();
+  const sig = data.subarray(10);
+  if (!data.subarray(2, 10).equals(pub.id)) return "was made with a different key than tauri.conf.json has";
+  const message = algorithm === "ED" ? createHash("blake2b512").update(file).digest() : file;
+  if (!verify(null, message, pub.key, sig)) return "does not match the file";
+  const trusted = (lines[2] ?? "").replace(/^trusted comment: /, "");
+  if (!verify(null, Buffer.concat([sig, Buffer.from(trusted)]), pub.key, Buffer.from(lines[3] ?? "", "base64")))
+    return "has a trusted comment that does not match";
+  return null;
+}
+
 function fail(problems) {
   for (const p of new Set(problems)) console.error(`latest.json: ${p}`);
   process.exit(1);
@@ -85,7 +120,7 @@ function fail(problems) {
 
 const [command, version, releaseFile, sigDir, latestFile] = process.argv.slice(2);
 if (!/^\d+\.\d+\.\d+$/.test(version ?? "") || !releaseFile || !sigDir) {
-  console.error("usage: latest-json.mjs write|check <version> <release.json> <sig dir> [latest.json]");
+  console.error("usage: latest-json.mjs write|check <version> <release.json> <dir> [latest.json]");
   process.exit(2);
 }
 const release = JSON.parse(readFileSync(releaseFile, "utf8"));
@@ -123,9 +158,27 @@ if (command === "write") {
   }
   for (const key of Object.keys(found))
     if (!(key in updates(version))) problems.push(`unexpected platform ${key}`);
+  const pub = publicKey();
+  const checked = new Set();
+  for (const [key, name] of Object.entries(updates(version))) {
+    const signature = platforms[key]?.signature;
+    if (!signature || checked.has(name)) continue;
+    checked.add(name);
+    let file;
+    try {
+      file = readFileSync(join(sigDir, name));
+    } catch {
+      problems.push(`${name} was not downloaded, so its signature was not checked`);
+      continue;
+    }
+    const problem = badSignature(signature, file, pub);
+    if (problem) problems.push(`the signature of ${name} ${problem}`);
+  }
   if (problems.length) fail(problems);
-  console.log(`latest.json: ${version}, ${Object.keys(found).length} entries, all signed and in the release`);
+  console.log(
+    `latest.json: ${version}, ${Object.keys(found).length} entries for ${checked.size} files, all in the release and signed with the app's key`,
+  );
 } else {
-  console.error("usage: latest-json.mjs write|check <version> <release.json> <sig dir> [latest.json]");
+  console.error("usage: latest-json.mjs write|check <version> <release.json> <dir> [latest.json]");
   process.exit(2);
 }

@@ -110,7 +110,7 @@ Fedora:
 sudo dnf install ./KeepAwake-*.x86_64.rpm
 ```
 
-On ARM64, such as a Raspberry Pi 4 or 5 with a 64-bit system, use the files that end in `_aarch64.AppImage`, `_arm64.deb` or `.aarch64.rpm`.
+On ARM64, use the files that end in `_aarch64.AppImage`, `_arm64.deb` or `.aarch64.rpm`, and put `aarch64` or `arm64` in place of `amd64` and `x86_64` in the commands above. They need a system as new as Ubuntu 22.04, such as 64-bit Raspberry Pi OS Bookworm on a Raspberry Pi 4 or 5.
 
 Plain GNOME hides tray icons. Install the [AppIndicator extension](https://extensions.gnome.org/extension/615/appindicator-support/) to see the KeepAwake icon. Ubuntu ships it already.
 

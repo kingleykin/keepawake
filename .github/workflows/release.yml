@@ -66,9 +66,13 @@ jobs:
 
             See [CHANGELOG.md](https://github.com/kingleykin/keepawake/blob/main/CHANGELOG.md) for what changed.
         run: |
-          # A re-run keeps adding to the draft it made before.
-          existing=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
-            --jq '[.[] | select(.tag_name == env.TAG)] | first // empty | "\(.id) \(.draft)"')
+          # A re-run keeps adding to the draft it made before. Later jobs also
+          # find the release by its tag, so there must be only one.
+          existing=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq '.[] | select(.tag_name == env.TAG) | "\(.id) \(.draft)"')
+          if [ "$(printf '%s' "$existing" | grep -c .)" -gt 1 ]; then
+            echo "More than one release has the tag $TAG. Delete the extra drafts and run again."; exit 1
+          fi
           if [ -n "$existing" ]; then
             [ "${existing#* }" = "true" ] || { echo "$TAG is already published"; exit 1; }
             id="${existing% *}"
@@ -167,28 +171,46 @@ jobs:
       - name: Write latest.json
         run: |
           gh api "$RELEASE" > release.json
-          gh release download "$TAG" --pattern '*.sig' --dir sigs
-          node scripts/latest-json.mjs write "$VERSION" release.json sigs > latest.json
+          mkdir -p files
+          jq -r '.assets[] | select(.name | endswith(".sig")) | "\(.url) \(.name)"' release.json |
+            while read -r url name; do gh api -H "Accept: application/octet-stream" "$url" > "files/$name"; done
+          node scripts/latest-json.mjs write "$VERSION" release.json files > latest.json
           gh release upload "$TAG" latest.json --clobber
 
       # Checks the uploaded copy, the one installed copies will read: the
-      # version, every platform, and that each entry names the right file and
-      # carries that file's signature.
+      # version, every platform, that each entry names the right file, and that
+      # each file's signature verifies with the app's public key.
       - name: Check latest.json
         run: |
           gh api "$RELEASE" > release.json
-          gh release download "$TAG" --pattern latest.json --output uploaded.json --clobber
-          cat uploaded.json
-          node scripts/latest-json.mjs check "$VERSION" release.json sigs uploaded.json
+          jq -r '.assets[] | select(.name | endswith(".sig") | not) | "\(.url) \(.name)"' release.json |
+            while read -r url name; do gh api -H "Accept: application/octet-stream" "$url" > "files/$name"; done
+          cat files/latest.json
+          node scripts/latest-json.mjs check "$VERSION" release.json files files/latest.json
 
   publish:
     name: Publish release
-    needs: updater
+    needs: [draft, updater]
     # A tag with a dash stays a draft. Everything before this still ran on it.
     if: ${{ !contains(github.ref_name, '-') }}
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: ${{ needs.draft.outputs.version }}
     steps:
       - name: Publish the draft
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release edit "${{ github.ref_name }}" --repo "${{ github.repository }}" --draft=false --latest
+        run: |
+          gh api -X PATCH "repos/${{ github.repository }}/releases/${{ needs.draft.outputs.id }}" \
+            -F draft=false -f make_latest=true > /dev/null
+
+      # Installed copies read latest.json from this address.
+      - name: Check what installed copies see
+        run: |
+          url="https://github.com/${{ github.repository }}/releases/latest/download/latest.json"
+          for attempt in 1 2 3 4 5 6; do
+            found=$(curl -fsSL "$url" | jq -r .version) || found=""
+            [ "$found" = "$VERSION" ] && { echo "Installed copies see $VERSION"; exit 0; }
+            echo "Attempt $attempt: $url says ${found:-nothing}"
+            sleep 10
+          done
+          exit 1

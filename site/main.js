@@ -90,6 +90,8 @@ const OS_NAMES = { mac: "macOS", win: "Windows", linux: "Linux" };
 const EN = {};
 let lang = "en";
 let release = null;
+// "loading", then "loaded" or "failed".
+let releaseState = "loading";
 const os = detectOs();
 
 function detectOs() {
@@ -154,9 +156,11 @@ function updateDownloads() {
     const asset = findAsset(link.dataset.asset);
     if (asset) link.href = asset.browser_download_url;
   }
-  // The ARM lines show once the latest release has the ARM files.
+  // The ARM lines wait for the release, and stay hidden if it has no ARM files.
+  // Without the release they show, linking to the releases page like the rest.
   for (const line of document.querySelectorAll(".arm")) {
-    line.hidden = ![...line.querySelectorAll("a.asset")].every((a) => findAsset(a.dataset.asset));
+    const files = [...line.querySelectorAll("a.asset")].every((a) => findAsset(a.dataset.asset));
+    line.hidden = releaseState === "loading" || (releaseState === "loaded" && !files);
   }
 
   const button = document.getElementById("dl");
@@ -178,12 +182,15 @@ function updateDownloads() {
 async function loadRelease() {
   try {
     const response = await fetch(API, { headers: { Accept: "application/vnd.github+json" } });
-    if (!response.ok) return;
+    if (!response.ok) throw new Error(response.status);
     release = await response.json();
-    updateDownloads();
+    releaseState = "loaded";
   } catch {
     // Offline or rate-limited: the links keep pointing at the releases page.
+    release = null;
+    releaseState = "failed";
   }
+  updateDownloads();
 }
 
 function selectTab(tab, focus) {
