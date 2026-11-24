@@ -17,6 +17,9 @@ All notable changes to KeepAwake are listed here. The format follows
   is unplugged, or when the battery drops below 20% while on battery. It is off by
   default, and only a change while KeepAwake is on counts. The window says why it
   switched off. The notification setting is now "Notify when KeepAwake switches off".
+- Builds for ARM: Windows on ARM (`_arm64-setup.exe`) and Linux on ARM64
+  (`_aarch64.AppImage`, `_arm64.deb`, `.aarch64.rpm`). Each updates itself like
+  the other builds.
 
 ### Fixed
 

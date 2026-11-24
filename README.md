@@ -55,6 +55,8 @@ Download the file for your system from the **[latest release](https://github.com
 | Linux, any distro | `KeepAwake_x.y.z_amd64.AppImage` |
 | Ubuntu / Debian | `KeepAwake_x.y.z_amd64.deb` |
 | Fedora / openSUSE | `KeepAwake-x.y.z-1.x86_64.rpm` |
+| Windows on ARM (1.2.0+) | `KeepAwake_x.y.z_arm64-setup.exe` |
+| Linux on ARM64 (1.2.0+) | `KeepAwake_x.y.z_aarch64.AppImage`, `KeepAwake_x.y.z_arm64.deb` or `KeepAwake-x.y.z-1.aarch64.rpm` |
 
 > The builds are not code-signed yet, because signing certificates cost money. Your system will warn you the first time. The steps below are needed once.
 
@@ -85,6 +87,8 @@ xattr -dr com.apple.quarantine /Applications/KeepAwake.app
 
 On managed or Smart App Control machines, "Run anyway" may be missing. Ask your administrator, or build from source.
 
+On an ARM PC, such as one with a Snapdragon chip, run `KeepAwake_x.y.z_arm64-setup.exe` instead. The x64 build runs there too, but slower, and it keeps updating to x64 builds. Install the ARM64 build over it to switch.
+
 ### Linux
 
 AppImage:
@@ -105,6 +109,8 @@ Fedora:
 ```bash
 sudo dnf install ./KeepAwake-*.x86_64.rpm
 ```
+
+On ARM64, such as a Raspberry Pi 4 or 5 with a 64-bit system, use the files that end in `_aarch64.AppImage`, `_arm64.deb` or `.aarch64.rpm`.
 
 Plain GNOME hides tray icons. Install the [AppIndicator extension](https://extensions.gnome.org/extension/615/appindicator-support/) to see the KeepAwake icon. Ubuntu ships it already.
 

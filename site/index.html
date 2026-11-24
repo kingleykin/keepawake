@@ -77,12 +77,14 @@
       <div class="pane" role="tabpanel" id="pane-win" aria-labelledby="tab-win" tabindex="0">
         <h3 class="pane-title">Windows</h3>
         <p data-i18n-html="winExe">Download the <a class="asset" data-asset="win" href="https://github.com/kingleykin/keepawake/releases/latest">installer</a> for Windows 10 or 11 and run it. It installs for your user only and does not need admin rights.</p>
+        <p class="arm" hidden data-i18n-html="winArm">On an ARM PC, such as one with a Snapdragon chip, get the <a class="asset" data-asset="winArm" href="https://github.com/kingleykin/keepawake/releases/latest">ARM64 installer</a> instead.</p>
         <p class="note" data-i18n-html="winNote">The installer is not code-signed yet. If SmartScreen says “Windows protected your PC”, click <b>More info → Run anyway</b>.</p>
       </div>
 
       <div class="pane" role="tabpanel" id="pane-linux" aria-labelledby="tab-linux" tabindex="0">
         <h3 class="pane-title">Linux</h3>
-        <p data-i18n-html="linuxFiles">Download the <a class="asset" data-asset="appimage" href="https://github.com/kingleykin/keepawake/releases/latest">AppImage</a> for any distro, the <a class="asset" data-asset="deb" href="https://github.com/kingleykin/keepawake/releases/latest">.deb</a> for Debian and Ubuntu, or the <a class="asset" data-asset="rpm" href="https://github.com/kingleykin/keepawake/releases/latest">.rpm</a> for Fedora and openSUSE. All are x86_64.</p>
+        <p data-i18n-html="linuxFiles">Download the <a class="asset" data-asset="appimage" href="https://github.com/kingleykin/keepawake/releases/latest">AppImage</a> for any distro, the <a class="asset" data-asset="deb" href="https://github.com/kingleykin/keepawake/releases/latest">.deb</a> for Debian and Ubuntu, or the <a class="asset" data-asset="rpm" href="https://github.com/kingleykin/keepawake/releases/latest">.rpm</a> for Fedora and openSUSE. These are for x86_64.</p>
+        <p class="arm" hidden data-i18n-html="linuxArm">For ARM64: <a class="asset" data-asset="appimageArm" href="https://github.com/kingleykin/keepawake/releases/latest">AppImage</a>, <a class="asset" data-asset="debArm" href="https://github.com/kingleykin/keepawake/releases/latest">.deb</a> or <a class="asset" data-asset="rpmArm" href="https://github.com/kingleykin/keepawake/releases/latest">.rpm</a>.</p>
         <pre><code>chmod +x KeepAwake_*_amd64.AppImage
 ./KeepAwake_*_amd64.AppImage</code></pre>
         <p class="note" data-i18n-html="linuxNote">Plain GNOME hides tray icons. Install the <a href="https://extensions.gnome.org/extension/615/appindicator-support/">AppIndicator extension</a> to see KeepAwake there. Ubuntu ships it already.</p>

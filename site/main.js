@@ -11,6 +11,10 @@ const ASSETS = {
   appimage: /_amd64\.AppImage$/,
   deb: /_amd64\.deb$/,
   rpm: /\.x86_64\.rpm$/,
+  winArm: /_arm64-setup\.exe$/,
+  appimageArm: /_aarch64\.AppImage$/,
+  debArm: /_arm64\.deb$/,
+  rpmArm: /\.aarch64\.rpm$/,
 };
 
 // English text comes from the HTML. Only Vietnamese and the dynamic strings live here.
@@ -39,8 +43,10 @@ const VI = {
   macDmg: 'Hoặc tải file <a class="asset" data-asset="mac" href="' + RELEASES + '">.dmg</a> (macOS 10.15 trở lên, chip Apple và Intel) rồi kéo KeepAwake vào Applications.',
   macNote: "App chưa được Apple công chứng nên lần đầu macOS sẽ chặn. Mở <b>System Settings → Privacy &amp; Security</b> và bấm <b>Open Anyway</b>, hoặc chạy lệnh này một lần:",
   winExe: 'Tải <a class="asset" data-asset="win" href="' + RELEASES + '">bộ cài</a> cho Windows 10 hoặc 11 rồi chạy. App chỉ cài cho tài khoản của bạn, không cần quyền admin.',
+  winArm: 'Máy chip ARM, ví dụ chip Snapdragon, thì tải <a class="asset" data-asset="winArm" href="' + RELEASES + '">bộ cài ARM64</a>.',
   winNote: "Bộ cài chưa được ký số. Nếu SmartScreen báo “Windows protected your PC”, bấm <b>More info → Run anyway</b>.",
-  linuxFiles: 'Tải <a class="asset" data-asset="appimage" href="' + RELEASES + '">AppImage</a> cho mọi bản phân phối, <a class="asset" data-asset="deb" href="' + RELEASES + '">.deb</a> cho Debian và Ubuntu, hoặc <a class="asset" data-asset="rpm" href="' + RELEASES + '">.rpm</a> cho Fedora và openSUSE. Tất cả cho máy x86_64.',
+  linuxFiles: 'Tải <a class="asset" data-asset="appimage" href="' + RELEASES + '">AppImage</a> cho mọi bản phân phối, <a class="asset" data-asset="deb" href="' + RELEASES + '">.deb</a> cho Debian và Ubuntu, hoặc <a class="asset" data-asset="rpm" href="' + RELEASES + '">.rpm</a> cho Fedora và openSUSE. Các file này cho máy x86_64.',
+  linuxArm: 'Cho máy ARM64: <a class="asset" data-asset="appimageArm" href="' + RELEASES + '">AppImage</a>, <a class="asset" data-asset="debArm" href="' + RELEASES + '">.deb</a> hoặc <a class="asset" data-asset="rpmArm" href="' + RELEASES + '">.rpm</a>.',
   linuxNote: 'GNOME gốc ẩn biểu tượng trên khay. Cài <a href="https://extensions.gnome.org/extension/615/appindicator-support/">tiện ích AppIndicator</a> để thấy KeepAwake. Ubuntu đã có sẵn.',
   faqTitle: "Câu hỏi thường gặp",
   q1: "Gập máy thì sao?",
@@ -147,6 +153,10 @@ function updateDownloads() {
   for (const link of document.querySelectorAll("a.asset")) {
     const asset = findAsset(link.dataset.asset);
     if (asset) link.href = asset.browser_download_url;
+  }
+  // The ARM lines show once the latest release has the ARM files.
+  for (const line of document.querySelectorAll(".arm")) {
+    line.hidden = ![...line.querySelectorAll("a.asset")].every((a) => findAsset(a.dataset.asset));
   }
 
   const button = document.getElementById("dl");

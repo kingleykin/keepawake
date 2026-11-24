@@ -49,6 +49,8 @@ Tải file theo hệ điều hành ở **[bản phát hành mới nhất](https:
 | Linux, mọi bản phân phối | `KeepAwake_x.y.z_amd64.AppImage` |
 | Ubuntu / Debian | `KeepAwake_x.y.z_amd64.deb` |
 | Fedora / openSUSE | `KeepAwake-x.y.z-1.x86_64.rpm` |
+| Windows chip ARM (từ 1.2.0) | `KeepAwake_x.y.z_arm64-setup.exe` |
+| Linux ARM64 (từ 1.2.0) | `KeepAwake_x.y.z_aarch64.AppImage`, `KeepAwake_x.y.z_arm64.deb` hoặc `KeepAwake-x.y.z-1.aarch64.rpm` |
 
 > Bản cài chưa được ký số vì chứng chỉ ký tốn phí. Lần mở đầu tiên hệ điều hành sẽ cảnh báo. Chỉ cần làm các bước dưới đây một lần.
 
@@ -79,6 +81,8 @@ xattr -dr com.apple.quarantine /Applications/KeepAwake.app
 
 Máy công ty hoặc máy bật Smart App Control có thể không có nút "Run anyway". Khi đó hãy hỏi quản trị viên, hoặc tự build từ mã nguồn.
 
+Máy chip ARM, ví dụ máy dùng chip Snapdragon, thì chạy `KeepAwake_x.y.z_arm64-setup.exe`. Bản x64 vẫn chạy được trên máy này nhưng chậm hơn, và sẽ tiếp tục cập nhật lên bản x64. Muốn đổi thì cài bản ARM64 đè lên.
+
 ### Linux
 
 AppImage:
@@ -99,6 +103,8 @@ Fedora:
 ```bash
 sudo dnf install ./KeepAwake-*.x86_64.rpm
 ```
+
+Máy ARM64, ví dụ Raspberry Pi 4 hoặc 5 chạy hệ 64-bit, thì dùng các file có đuôi `_aarch64.AppImage`, `_arm64.deb` hoặc `.aarch64.rpm`.
 
 GNOME gốc ẩn icon khay. Cài [AppIndicator extension](https://extensions.gnome.org/extension/615/appindicator-support/) để thấy icon KeepAwake. Ubuntu đã có sẵn.
 
