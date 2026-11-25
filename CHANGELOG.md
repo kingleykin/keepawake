@@ -23,8 +23,8 @@ All notable changes to KeepAwake are listed here. The format follows
   (`_aarch64.AppImage`, `_arm64.deb`, `.aarch64.rpm`). Each updates itself like
   the other builds.
 - KeepAwake now also looks for a new version once a day while it runs, not only at
-  start. A new version adds "Update to x.y.z…" to the tray menu and sends one
-  notification. The notification setting is now simply "Notifications".
+  start and when Settings opens. A new version adds "Update to x.y.z…" to the tray
+  menu and, if notifications are on, sends one notification. The notification setting is now simply "Notifications".
 
 ### Fixed
 

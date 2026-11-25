@@ -33,7 +33,7 @@
 - **Hai chế độ.** Giữ cả màn hình, hoặc chỉ giữ hệ thống và cho phép màn hình tắt.
 - **Nằm ở khay hệ thống.** Menu hiện thời gian còn lại. Chọn một mốc thời gian trong menu sẽ bật luôn.
 - **Khởi động cùng hệ thống.** Chạy ngầm ở khay, không mở cửa sổ.
-- **Cập nhật.** Bản mới hiện trong Cài đặt và menu khay, kèm một thông báo. Chỉ cài khi bạn bấm Cập nhật.
+- **Cập nhật.** Bản mới hiện trong Cài đặt và menu khay, kèm một thông báo nếu bạn bật thông báo. Chỉ cài khi bạn bấm Cập nhật.
 - **Tiếng Anh và tiếng Việt.** Mặc định tiếng Anh, đổi trong Cài đặt.
 - **Nhẹ.** Viết bằng [Tauri](https://tauri.app) và Rust, bộ cài vài MB.
 - **Trạng thái trung thực.** Chỉ hiện "Đang giữ thức" khi hệ điều hành đã chấp nhận. Nếu bị từ chối, app hiện lỗi.

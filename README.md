@@ -39,7 +39,7 @@
 - **Two modes.** Keep the display on, or keep only the system awake and let the screen turn off.
 - **Lives in the tray.** The menu shows the countdown and lets you pick a time, which also switches keep-awake on.
 - **Launch at login.** Starts quietly in the tray.
-- **Updates.** A new version shows in Settings and the tray menu, with one notification. It installs only when you press Install.
+- **Updates.** A new version shows in Settings and the tray menu, with one notification if notifications are on. It installs only when you press Install.
 - **English and Vietnamese.** English is the default. Change it in Settings.
 - **Small.** Built with [Tauri](https://tauri.app) and Rust. The installer is a few megabytes.
 - **Honest status.** "Keeping awake" only shows after the operating system has accepted the request. If it refuses, you see the error instead.

@@ -160,6 +160,33 @@ mod tests {
     }
 
     #[test]
+    fn a_1_1_settings_file_keeps_every_choice() {
+        let path = temp_file("v1_1.json");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(
+            &path,
+            r#"{"language":"vi","closeToTray":false,"durationMin":120,"custom":{"kind":"until","hour":18,"minute":30},"useCustom":false,"mode":"system","notifyWhenDone":false,"shortcut":true}"#,
+        )
+        .unwrap();
+        let loaded = load(&path);
+        assert_eq!(loaded.language, Language::Vi);
+        assert!(!loaded.close_to_tray);
+        assert_eq!(loaded.duration_min, 120);
+        assert_eq!(
+            loaded.custom,
+            Some(Custom::Until {
+                hour: 18,
+                minute: 30
+            })
+        );
+        assert_eq!(loaded.mode, Mode::System);
+        assert!(!loaded.notify_when_done);
+        assert!(loaded.shortcut);
+        assert_eq!(loaded.announced_update, None, "nothing announced yet");
+        assert_eq!(loaded.battery_guard, BatteryGuard::Off);
+    }
+
+    #[test]
     fn bad_values_are_repaired() {
         let path = temp_file("bad.json");
         fs::create_dir_all(path.parent().unwrap()).unwrap();

@@ -37,6 +37,11 @@ const UPDATE_CHECK_INTERVAL: Duration = Duration::from_secs(24 * 3600);
 const UPDATE_RETRY: Duration = Duration::from_secs(3600);
 /// How often the update thread looks at the clock.
 const UPDATE_TICK: Duration = Duration::from_secs(10 * 60);
+/// A check that takes longer has failed, so a stalled connection never stops
+/// the daily checks.
+const UPDATE_CHECK_TIMEOUT: Duration = Duration::from_secs(30);
+/// The whole download of an update, which can be 80 MB, must finish within this.
+const UPDATE_DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 /// How much "+15 min" adds.
 const EXTEND_MS: u64 = 15 * 60_000;
 /// "+15 min" never takes the time left past a day.
@@ -644,16 +649,18 @@ fn notify_off(app: &AppHandle, why: Text) {
     }
 }
 
-fn notify(app: &AppHandle, body: &str) {
+/// Shows a notification. Returns whether the system took it.
+fn notify(app: &AppHandle, body: &str) -> bool {
     let shown = app
         .notification()
         .builder()
         .title("KeepAwake")
         .body(body)
         .show();
-    if let Err(e) = shown {
+    if let Err(e) = &shown {
         eprintln!("could not show the notification: {e}");
     }
+    shown.is_ok()
 }
 
 /// Whether to announce this version: once each, and only to users who want notifications.
@@ -671,21 +678,39 @@ fn mark_update_seen(app: &AppHandle) -> Option<String> {
     Some(version)
 }
 
+fn window_in_front(app: &AppHandle) -> bool {
+    app.get_webview_window("main")
+        .is_some_and(|w| w.is_visible().unwrap_or(false) && w.is_focused().unwrap_or(false))
+}
+
 /// Tell the user once about each newer release the background check finds.
+/// A user looking at the window already sees it there.
 fn announce_update(app: &AppHandle) {
     let state = app.state::<AppState>();
     let Some(version) = lock(&state.update).as_ref().map(|u| u.version.clone()) else {
         return;
     };
     let settings = lock(&state.settings).clone();
-    if should_announce(&settings, &version) {
+    if !should_announce(&settings, &version) {
+        return;
+    }
+    // A notification the system refused is tried again at the next check.
+    if window_in_front(app) || notify(app, &i18n::update_ready(settings.language, &version)) {
         mark_update_seen(app);
-        notify(app, &i18n::update_ready(settings.language, &version));
     }
 }
 
-/// Whether the next update check is due. A clock set back by more than a whole
-/// interval would otherwise put the next check far away.
+/// When to check next, after a check that worked or failed.
+fn next_update_check(now: SystemTime, worked: bool) -> SystemTime {
+    now + if worked {
+        UPDATE_CHECK_INTERVAL
+    } else {
+        UPDATE_RETRY
+    }
+}
+
+/// Whether the next update check is due. A wait longer than any the thread
+/// schedules means the clock was set back, so it checks now instead.
 fn update_due(now: SystemTime, next: SystemTime) -> bool {
     match next.duration_since(now) {
         Ok(wait) => wait.is_zero() || wait > UPDATE_CHECK_INTERVAL,
@@ -705,16 +730,14 @@ fn spawn_update_checks(app: AppHandle) {
             loop {
                 let now = SystemTime::now();
                 if update_due(now, next) {
-                    match tauri::async_runtime::block_on(check_for_update(&app)) {
+                    let result = tauri::async_runtime::block_on(check_for_update(&app));
+                    next = next_update_check(now, result.is_ok());
+                    match result {
                         Ok(()) => {
-                            next = now + UPDATE_CHECK_INTERVAL;
                             publish(&app);
                             announce_update(&app);
                         }
-                        Err(e) => {
-                            next = now + UPDATE_RETRY;
-                            eprintln!("could not check for updates: {e}");
-                        }
+                        Err(e) => eprintln!("could not check for updates: {e}"),
                     }
                 }
                 std::thread::sleep(UPDATE_TICK);
@@ -754,11 +777,18 @@ fn apply_shortcut(app: &AppHandle) {
 /// Look for a newer release. Never installs anything by itself.
 async fn check_for_update(app: &AppHandle) -> Result<(), String> {
     let update = app
-        .updater()
+        .updater_builder()
+        .timeout(UPDATE_CHECK_TIMEOUT)
+        .build()
         .map_err(|e| e.to_string())?
         .check()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?
+        .map(|mut update| {
+            // The check's short limit would cut a slow download off.
+            update.timeout = Some(UPDATE_DOWNLOAD_TIMEOUT);
+            update
+        });
     *lock(&app.state::<AppState>().update) = update;
     Ok(())
 }
@@ -964,9 +994,11 @@ async fn refresh_battery(app: AppHandle) -> Snapshot {
 
 #[tauri::command]
 async fn check_update(app: AppHandle) -> Result<Snapshot, String> {
-    check_for_update(&app).await?;
-    // Settings is open and shows it, so no notification is needed for it.
+    let checked = check_for_update(&app).await;
+    // Settings is open and shows the update, even one found earlier when
+    // this check fails, so no notification is needed for it.
     mark_update_seen(&app);
+    checked?;
     Ok(publish(&app))
 }
 
@@ -1662,6 +1694,14 @@ mod tests {
             !should_announce(&settings, "1.3.0"),
             "notifications are off"
         );
+    }
+
+    #[test]
+    fn a_failed_update_check_is_tried_again_sooner() {
+        let now = UNIX_EPOCH + Duration::from_secs(2_000_000_000);
+        assert_eq!(next_update_check(now, true), now + UPDATE_CHECK_INTERVAL);
+        assert_eq!(next_update_check(now, false), now + UPDATE_RETRY);
+        assert!(UPDATE_RETRY < UPDATE_CHECK_INTERVAL);
     }
 
     #[test]

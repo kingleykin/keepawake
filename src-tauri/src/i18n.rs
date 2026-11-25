@@ -73,8 +73,12 @@ pub fn update_item(lang: Language, version: &str) -> String {
 /// The notification for a newer release.
 pub fn update_ready(lang: Language, version: &str) -> String {
     match lang {
-        Language::En => format!("KeepAwake {version} is available. Open Settings to install it."),
-        Language::Vi => format!("Đã có KeepAwake {version}. Mở Cài đặt để cập nhật."),
+        Language::En => {
+            format!("KeepAwake {version} is available. Install it from Settings or the tray menu.")
+        }
+        Language::Vi => {
+            format!("Đã có KeepAwake {version}. Cập nhật trong Cài đặt hoặc menu khay.")
+        }
     }
 }
 
