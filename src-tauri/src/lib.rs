@@ -31,6 +31,12 @@ const EVENT_SHOW_SETTINGS: &str = "show-settings";
 const EVENT_SHOW_CUSTOM: &str = "show-custom";
 /// Wait this long after launch before looking for an update.
 const UPDATE_CHECK_DELAY: Duration = Duration::from_secs(5);
+/// Look again this often while the app runs, by the wall clock.
+const UPDATE_CHECK_INTERVAL: Duration = Duration::from_secs(24 * 3600);
+/// After a failed check, for example while offline, try again sooner.
+const UPDATE_RETRY: Duration = Duration::from_secs(3600);
+/// How often the update thread looks at the clock.
+const UPDATE_TICK: Duration = Duration::from_secs(10 * 60);
 /// How much "+15 min" adds.
 const EXTEND_MS: u64 = 15 * 60_000;
 /// "+15 min" never takes the time left past a day.
@@ -633,18 +639,88 @@ fn select_custom(app: &AppHandle, custom: Custom) -> Result<(), String> {
 /// Tell the user that keep-awake switched itself off, and why, if they want to know.
 fn notify_off(app: &AppHandle, why: Text) {
     let settings = lock(&app.state::<AppState>().settings).clone();
-    if !settings.notify_when_done {
-        return;
+    if settings.notify_when_done {
+        notify(app, i18n::text(settings.language, why));
     }
+}
+
+fn notify(app: &AppHandle, body: &str) {
     let shown = app
         .notification()
         .builder()
         .title("KeepAwake")
-        .body(i18n::text(settings.language, why))
+        .body(body)
         .show();
     if let Err(e) = shown {
         eprintln!("could not show the notification: {e}");
     }
+}
+
+/// Whether to announce this version: once each, and only to users who want notifications.
+fn should_announce(settings: &Settings, version: &str) -> bool {
+    settings.notify_when_done && settings.announced_update.as_deref() != Some(version)
+}
+
+/// Remember that the user knows about the update found, so it is not announced again.
+fn mark_update_seen(app: &AppHandle) -> Option<String> {
+    let state = app.state::<AppState>();
+    let version = lock(&state.update).as_ref().map(|u| u.version.clone())?;
+    if lock(&state.settings).announced_update.as_deref() != Some(&version) {
+        update_settings(app, |s| s.announced_update = Some(version.clone()));
+    }
+    Some(version)
+}
+
+/// Tell the user once about each newer release the background check finds.
+fn announce_update(app: &AppHandle) {
+    let state = app.state::<AppState>();
+    let Some(version) = lock(&state.update).as_ref().map(|u| u.version.clone()) else {
+        return;
+    };
+    let settings = lock(&state.settings).clone();
+    if should_announce(&settings, &version) {
+        mark_update_seen(app);
+        notify(app, &i18n::update_ready(settings.language, &version));
+    }
+}
+
+/// Whether the next update check is due. A clock set back by more than a whole
+/// interval would otherwise put the next check far away.
+fn update_due(now: SystemTime, next: SystemTime) -> bool {
+    match next.duration_since(now) {
+        Ok(wait) => wait.is_zero() || wait > UPDATE_CHECK_INTERVAL,
+        Err(_) => true,
+    }
+}
+
+/// Looks for an update soon after launch, then once a day while the app runs.
+/// It goes by the wall clock, so a computer that slept through the day checks
+/// soon after it wakes. Never installs anything.
+fn spawn_update_checks(app: AppHandle) {
+    std::thread::Builder::new()
+        .name("updates".into())
+        .spawn(move || {
+            std::thread::sleep(UPDATE_CHECK_DELAY);
+            let mut next = SystemTime::now();
+            loop {
+                let now = SystemTime::now();
+                if update_due(now, next) {
+                    match tauri::async_runtime::block_on(check_for_update(&app)) {
+                        Ok(()) => {
+                            next = now + UPDATE_CHECK_INTERVAL;
+                            publish(&app);
+                            announce_update(&app);
+                        }
+                        Err(e) => {
+                            next = now + UPDATE_RETRY;
+                            eprintln!("could not check for updates: {e}");
+                        }
+                    }
+                }
+                std::thread::sleep(UPDATE_TICK);
+            }
+        })
+        .expect("failed to start the update thread");
 }
 
 /// Cmd+Option+K on macOS, Ctrl+Alt+K elsewhere.
@@ -735,7 +811,8 @@ pub(crate) fn on_menu(app: &AppHandle, id: &str) {
             publish(app);
         }),
         tray::MENU_OPEN => show_window(app),
-        tray::MENU_SETTINGS => {
+        // Settings shows the update and its Install button.
+        tray::MENU_SETTINGS | tray::MENU_UPDATE => {
             show_window(app);
             let _ = app.emit(EVENT_SHOW_SETTINGS, ());
         }
@@ -888,6 +965,8 @@ async fn refresh_battery(app: AppHandle) -> Snapshot {
 #[tauri::command]
 async fn check_update(app: AppHandle) -> Result<Snapshot, String> {
     check_for_update(&app).await?;
+    // Settings is open and shows it, so no notification is needed for it.
+    mark_update_seen(&app);
     Ok(publish(&app))
 }
 
@@ -978,18 +1057,7 @@ pub fn run() {
                 check_power(app, true);
                 publish(app);
             });
-            let checker = handle.clone();
-            tauri::async_runtime::spawn(async move {
-                let _ =
-                    tauri::async_runtime::spawn_blocking(|| std::thread::sleep(UPDATE_CHECK_DELAY))
-                        .await;
-                match check_for_update(&checker).await {
-                    Ok(()) => {
-                        publish(&checker);
-                    }
-                    Err(e) => eprintln!("could not check for updates: {e}"),
-                }
-            });
+            spawn_update_checks(handle.clone());
 
             if std::env::args().any(|arg| arg == HIDDEN_ARG) {
                 hide_window(&handle);
@@ -1576,6 +1644,43 @@ mod tests {
             session.stopped().stopped_reason,
             None,
             "switching off by hand clears it"
+        );
+    }
+
+    #[test]
+    fn each_update_is_announced_once() {
+        let mut settings = Settings::default();
+        assert!(should_announce(&settings, "1.2.1"));
+        settings.announced_update = Some("1.2.1".into());
+        assert!(!should_announce(&settings, "1.2.1"), "already told");
+        assert!(
+            should_announce(&settings, "1.3.0"),
+            "a newer one is news again"
+        );
+        settings.notify_when_done = false;
+        assert!(
+            !should_announce(&settings, "1.3.0"),
+            "notifications are off"
+        );
+    }
+
+    #[test]
+    fn update_checks_follow_the_wall_clock() {
+        let now = UNIX_EPOCH + Duration::from_secs(2_000_000_000);
+        let hour = Duration::from_secs(3600);
+        assert!(update_due(now, now), "due on the dot");
+        assert!(
+            update_due(now, now - hour),
+            "a computer that slept past it checks on waking"
+        );
+        assert!(!update_due(now, now + hour), "not yet");
+        assert!(
+            !update_due(now, now + UPDATE_CHECK_INTERVAL),
+            "a full day away"
+        );
+        assert!(
+            update_due(now, now + UPDATE_CHECK_INTERVAL + hour),
+            "the clock was set back"
         );
     }
 }

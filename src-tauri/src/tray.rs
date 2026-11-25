@@ -15,6 +15,7 @@ pub const MENU_OPEN: &str = "open";
 pub const MENU_SETTINGS: &str = "settings";
 pub const MENU_QUIT: &str = "quit";
 pub const MENU_CUSTOM: &str = "custom";
+pub const MENU_UPDATE: &str = "update";
 pub const MENU_DURATION_PREFIX: &str = "duration:";
 
 // macOS draws monochrome "template" icons that follow the menu bar colour.
@@ -41,6 +42,8 @@ pub struct Tray {
     icon: TrayIcon<Wry>,
     items: Items,
     language: Language,
+    /// The update the menu offers. The menu is built again when it changes.
+    update: Option<String>,
     shown_active: Option<bool>,
     #[cfg(target_os = "macos")]
     shown_title: Option<String>,
@@ -50,8 +53,21 @@ fn icon(active: bool) -> tauri::Result<Image<'static>> {
     Image::from_bytes(if active { ICON_ON } else { ICON_OFF })
 }
 
-fn build_items(app: &AppHandle, lang: Language) -> tauri::Result<Items> {
+fn build_items(app: &AppHandle, lang: Language, update: Option<&str>) -> tauri::Result<Items> {
     let status = MenuItem::with_id(app, "status", "KeepAwake", false, None::<&str>)?;
+    // Only there while a newer release is waiting. It opens Settings, where the
+    // user installs it.
+    let update = update
+        .map(|version| {
+            MenuItem::with_id(
+                app,
+                MENU_UPDATE,
+                i18n::update_item(lang, version),
+                true,
+                None::<&str>,
+            )
+        })
+        .transpose()?;
     let toggle = CheckMenuItem::with_id(
         app,
         MENU_TOGGLE,
@@ -113,15 +129,11 @@ fn build_items(app: &AppHandle, lang: Language) -> tauri::Result<Items> {
         None::<&str>,
     )?;
 
-    let menu = Menu::with_items(
-        app,
-        &[
-            &status,
-            &PredefinedMenuItem::separator(app)?,
-            &toggle,
-            &extend,
-        ],
-    )?;
+    let menu = Menu::with_items(app, &[&status])?;
+    if let Some(update) = &update {
+        menu.append(update)?;
+    }
+    menu.append_items(&[&PredefinedMenuItem::separator(app)?, &toggle, &extend])?;
     menu.append(&PredefinedMenuItem::separator(app)?)?;
     for (_, item) in &durations {
         menu.append(item)?;
@@ -147,7 +159,7 @@ fn build_items(app: &AppHandle, lang: Language) -> tauri::Result<Items> {
 
 impl Tray {
     pub fn new(app: &AppHandle, snap: &Snapshot) -> tauri::Result<Self> {
-        let items = build_items(app, snap.language)?;
+        let items = build_items(app, snap.language, snap.update.as_deref())?;
         let icon = TrayIconBuilder::with_id("main")
             .icon(icon(false)?)
             .icon_as_template(IS_TEMPLATE)
@@ -172,6 +184,7 @@ impl Tray {
             icon,
             items,
             language: snap.language,
+            update: snap.update.clone(),
             shown_active: None,
             #[cfg(target_os = "macos")]
             shown_title: None,
@@ -182,12 +195,13 @@ impl Tray {
 
     /// Bring the icon and menu in line with the current state.
     pub fn sync(&mut self, app: &AppHandle, snap: &Snapshot) {
-        if snap.language != self.language {
-            match build_items(app, snap.language) {
+        if snap.language != self.language || snap.update != self.update {
+            match build_items(app, snap.language, snap.update.as_deref()) {
                 Ok(items) => {
                     let _ = self.icon.set_menu(Some(items.menu.clone()));
                     self.items = items;
                     self.language = snap.language;
+                    self.update = snap.update.clone();
                 }
                 Err(e) => eprintln!("could not rebuild the tray menu: {e}"),
             }

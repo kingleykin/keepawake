@@ -66,6 +66,8 @@ pub struct Settings {
     pub show_time_in_menu_bar: bool,
     pub shortcut: bool,
     pub battery_guard: BatteryGuard,
+    /// The newest version the user has been told about, so each one is announced once.
+    pub announced_update: Option<String>,
 }
 
 impl Default for Settings {
@@ -83,6 +85,7 @@ impl Default for Settings {
             // layouts, and ⌥⌘K opens Firefox's Web Console.
             shortcut: false,
             battery_guard: BatteryGuard::Off,
+            announced_update: None,
         }
     }
 }
@@ -150,6 +153,7 @@ mod tests {
             show_time_in_menu_bar: false,
             shortcut: true,
             battery_guard: BatteryGuard::Below20,
+            announced_update: Some("1.2.0".into()),
         };
         save(&path, &settings).unwrap();
         assert_eq!(load(&path), settings);
