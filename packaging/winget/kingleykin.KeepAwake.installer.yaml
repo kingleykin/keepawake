@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.10.0.schema.json
 
 PackageIdentifier: kingleykin.KeepAwake
-PackageVersion: 1.1.0
+PackageVersion: 1.2.0
 InstallerType: nullsoft
 Scope: user
 InstallModes:
@@ -9,11 +9,18 @@ InstallModes:
 - silent
 - silentWithProgress
 UpgradeBehavior: install
-ReleaseDate: 2026-10-31
+ReleaseDate: 2026-11-25
 Installers:
 - Architecture: x64
-  InstallerUrl: https://github.com/kingleykin/keepawake/releases/download/v1.1.0/KeepAwake_1.1.0_x64-setup.exe
-  InstallerSha256: BFCBCD6691BE52D440A0A5862946EC28A54D79C9B92747215A9B0F009D43F6F7
+  InstallerUrl: https://github.com/kingleykin/keepawake/releases/download/v1.2.0/KeepAwake_1.2.0_x64-setup.exe
+  InstallerSha256: 503001D6E459D52E0070B9011210116FF5664A5FBE12902BE75DAF8E753B8FFC
+  AppsAndFeaturesEntries:
+  - DisplayName: KeepAwake
+    Publisher: KeepAwake contributors
+    ProductCode: KeepAwake
+- Architecture: arm64
+  InstallerUrl: https://github.com/kingleykin/keepawake/releases/download/v1.2.0/KeepAwake_1.2.0_arm64-setup.exe
+  InstallerSha256: BA55E5262AA85C074327CD2C5BC938560526C11D482CD26CC48B6FEB204F1FEA
   AppsAndFeaturesEntries:
   - DisplayName: KeepAwake
     Publisher: KeepAwake contributors
