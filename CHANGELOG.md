@@ -6,6 +6,8 @@ All notable changes to KeepAwake are listed here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-25
+
 ### Added
 
 - "+15 min" adds a quarter of an hour to a running timer, from the window or the
@@ -81,7 +83,8 @@ All notable changes to KeepAwake are listed here. The format follows
 - Light and dark themes that follow the system.
 - Installers for macOS (universal `.dmg`), Windows (`.exe`, `.msi`) and Linux (`.AppImage`, `.deb`, `.rpm`).
 
-[Unreleased]: https://github.com/kingleykin/keepawake/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/kingleykin/keepawake/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/kingleykin/keepawake/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/kingleykin/keepawake/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/kingleykin/keepawake/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/kingleykin/keepawake/releases/tag/v1.0.0
