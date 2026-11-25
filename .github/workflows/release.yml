@@ -1,17 +1,91 @@
 name: Release
 
 # Push a tag such as v1.0.0 to build every platform and publish a GitHub Release.
+# A tag with a dash, such as v1.2.0-rc.1, runs every step and check but leaves
+# the release as a draft, so installed copies never see it.
 on:
   push:
     tags: ["v*"]
+  # Run it on a tag. On a branch it stops at the first job.
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  draft:
+    name: Create the draft release
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    outputs:
+      id: ${{ steps.draft.outputs.id }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # v1.2.0-rc.1 builds 1.2.0, the exact build v1.2.0 will ship. MSI only
+      # takes plain numbers, so the app version never carries the rc part.
+      - name: Check the version
+        id: version
+        run: |
+          [[ "$GITHUB_REF_NAME" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-[0-9A-Za-z.]+)?$ ]] \
+            || { echo "Tag $GITHUB_REF_NAME is not like v1.2.0 or v1.2.0-rc.1"; exit 1; }
+          version="${BASH_REMATCH[1]}"
+          for found in \
+            "package.json $(jq -r .version package.json)" \
+            "src-tauri/tauri.conf.json $(jq -r .version src-tauri/tauri.conf.json)" \
+            "src-tauri/Cargo.toml $(sed -n 's/^version = "\(.*\)"/\1/p' src-tauri/Cargo.toml | head -n 1)"; do
+            [ "${found#* }" = "$version" ] || { echo "${found% *} says ${found#* }, the tag says $version"; exit 1; }
+          done
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # One job makes the release, so the builds running side by side cannot each make one.
+      - name: Create the draft
+        id: draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ contains(github.ref_name, '-') }}
+          BODY: |
+            ## Download
+
+            | System | File |
+            |---|---|
+            | macOS (Apple Silicon and Intel) | `KeepAwake_*_universal.dmg` |
+            | Windows 10/11 | `KeepAwake_*_x64-setup.exe` (recommended) or `.msi` |
+            | Windows on ARM | `KeepAwake_*_arm64-setup.exe` |
+            | Linux | `_amd64.AppImage` (any distro), `_amd64.deb` (Ubuntu/Debian), `.x86_64.rpm` (Fedora) |
+            | Linux on ARM64 | `_aarch64.AppImage`, `_arm64.deb`, `.aarch64.rpm` |
+
+            These builds are not code-signed yet. See the README for the one-time steps to open them:
+            https://github.com/kingleykin/keepawake#install
+
+            See [CHANGELOG.md](https://github.com/kingleykin/keepawake/blob/main/CHANGELOG.md) for what changed.
+        run: |
+          # A re-run keeps adding to the draft it made before. Later jobs also
+          # find the release by its tag, so there must be only one.
+          existing=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq '.[] | select(.tag_name == env.TAG) | "\(.id) \(.draft)"')
+          if [ "$(printf '%s' "$existing" | grep -c .)" -gt 1 ]; then
+            echo "More than one release has the tag $TAG. Delete the extra drafts and run again."; exit 1
+          fi
+          if [ -n "$existing" ]; then
+            [ "${existing#* }" = "true" ] || { echo "$TAG is already published"; exit 1; }
+            id="${existing% *}"
+          else
+            id=$(gh api -X POST "repos/$GITHUB_REPOSITORY/releases" \
+              -f tag_name="$TAG" -f name="KeepAwake $TAG" -f body="$BODY" \
+              -F draft=true -F prerelease="$PRERELEASE" --jq .id)
+          fi
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
   build:
     name: Build (${{ matrix.name }})
+    needs: draft
     strategy:
       fail-fast: false
       matrix:
@@ -24,10 +98,19 @@ jobs:
             platform: ubuntu-22.04
             args: ""
             rust-targets: ""
+          - name: Linux ARM64
+            platform: ubuntu-22.04-arm
+            args: ""
+            rust-targets: ""
           - name: Windows x64
             platform: windows-latest
             args: ""
             rust-targets: ""
+          # NSIS only. Tauri can make an ARM64 MSI, but nobody has tried ours.
+          - name: Windows ARM64
+            platform: windows-11-arm
+            args: --target aarch64-pc-windows-msvc --bundles nsis
+            rust-targets: aarch64-pc-windows-msvc
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v7
@@ -47,9 +130,16 @@ jobs:
         with:
           targets: ${{ matrix.rust-targets }}
 
+      # ring, which the update download uses, needs clang to build for ARM64 Windows.
+      - name: Find clang
+        if: runner.os == 'Windows' && runner.arch == 'ARM64'
+        shell: pwsh
+        run: ./scripts/find-clang.ps1
+
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+          key: ${{ matrix.platform }}
 
       - run: npm ci
 
@@ -60,49 +150,67 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: KeepAwake ${{ github.ref_name }}
-          releaseBody: |
-            ## Download
-
-            | System | File |
-            |---|---|
-            | macOS (Apple Silicon and Intel) | `KeepAwake_*_universal.dmg` |
-            | Windows 10/11 | `KeepAwake_*_x64-setup.exe` (recommended) or `.msi` |
-            | Linux | `.AppImage` (any distro), `.deb` (Ubuntu/Debian), `.rpm` (Fedora) |
-
-            These builds are not code-signed yet. See the README for the one-time steps to open them:
-            https://github.com/kingleykin/keepawake#install
-
-            See [CHANGELOG.md](https://github.com/kingleykin/keepawake/blob/main/CHANGELOG.md) for what changed.
-          # Publish only after every platform has uploaded its files.
-          releaseDraft: true
-          prerelease: false
+          releaseId: ${{ needs.draft.outputs.id }}
           # Release builds also make the signed update files. Local builds skip them.
           args: ${{ matrix.args }} --config src-tauri/tauri.release.conf.json
-          # latest.json tells installed copies about this release.
-          uploadUpdaterJson: true
-          updaterJsonPreferNsis: true
+          # The updater job writes latest.json once every build is done.
+          uploadUpdaterJson: false
+
+  updater:
+    name: Write latest.json
+    needs: [draft, build]
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ github.ref_name }}
+      VERSION: ${{ needs.draft.outputs.version }}
+      RELEASE: repos/${{ github.repository }}/releases/${{ needs.draft.outputs.id }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Write latest.json
+        run: |
+          gh api "$RELEASE" > release.json
+          mkdir -p files
+          jq -r '.assets[] | select(.name | endswith(".sig")) | "\(.url) \(.name)"' release.json |
+            while read -r url name; do gh api -H "Accept: application/octet-stream" "$url" > "files/$name"; done
+          node scripts/latest-json.mjs write "$VERSION" release.json files > latest.json
+          gh release upload "$TAG" latest.json --clobber
+
+      # Checks the uploaded copy, the one installed copies will read: the
+      # version, every platform, that each entry names the right file, and that
+      # each file's signature verifies with the app's public key.
+      - name: Check latest.json
+        run: |
+          gh api "$RELEASE" > release.json
+          jq -r '.assets[] | select(.name | endswith(".sig") | not) | "\(.url) \(.name)"' release.json |
+            while read -r url name; do gh api -H "Accept: application/octet-stream" "$url" > "files/$name"; done
+          cat files/latest.json
+          node scripts/latest-json.mjs check "$VERSION" release.json files files/latest.json
 
   publish:
     name: Publish release
-    needs: build
+    needs: [draft, updater]
+    # A tag with a dash stays a draft. Everything before this still ran on it.
+    if: ${{ !contains(github.ref_name, '-') }}
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: ${{ needs.draft.outputs.version }}
     steps:
-      # Every platform adds itself to latest.json. Do not publish a release that
-      # would leave one of them without updates.
-      - name: Check latest.json
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern latest.json
-          cat latest.json
-          for platform in darwin-aarch64 darwin-x86_64 linux-x86_64 windows-x86_64; do
-            jq -e --arg p "$platform" '.platforms[$p].signature | length > 0' latest.json >/dev/null \
-              || { echo "latest.json has no signed update for $platform"; exit 1; }
-          done
-
       - name: Publish the draft
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release edit "${{ github.ref_name }}" --repo "${{ github.repository }}" --draft=false --latest
+        run: |
+          gh api -X PATCH "repos/${{ github.repository }}/releases/${{ needs.draft.outputs.id }}" \
+            -F draft=false -f make_latest=true > /dev/null
+
+      # Installed copies read latest.json from this address.
+      - name: Check what installed copies see
+        run: |
+          url="https://github.com/${{ github.repository }}/releases/latest/download/latest.json"
+          for attempt in 1 2 3 4 5 6; do
+            found=$(curl -fsSL "$url" | jq -r .version) || found=""
+            [ "$found" = "$VERSION" ] && { echo "Installed copies see $VERSION"; exit 0; }
+            echo "Attempt $attempt: $url says ${found:-nothing}"
+            sleep 10
+          done
+          exit 1

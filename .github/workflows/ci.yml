@@ -18,7 +18,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-latest, ubuntu-22.04, windows-latest]
+        # The ARM machines catch ARM-only build problems before a release does.
+        platform: [macos-latest, ubuntu-22.04, ubuntu-22.04-arm, windows-latest, windows-11-arm]
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v7
@@ -33,12 +34,19 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      # ring, which the update download uses, needs clang to build for ARM64 Windows.
+      - name: Find clang
+        if: runner.os == 'Windows' && runner.arch == 'ARM64'
+        shell: pwsh
+        run: ./scripts/find-clang.ps1
+
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+          key: ${{ matrix.platform }}
 
       - name: Format
-        if: runner.os == 'Linux'
+        if: matrix.platform == 'ubuntu-22.04'
         working-directory: src-tauri
         run: cargo fmt --check
 
