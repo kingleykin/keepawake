@@ -212,7 +212,7 @@ src-tauri/src/
   settings.rs        settings saved as JSON
   i18n.rs            tray menu text in English and Vietnamese
   lib.rs             state, timer, commands
-scripts/             icon rendering
+scripts/             icon rendering, site build, launch test, latest.json writer and check
 packaging/           Homebrew, winget and AUR files
 site/                website: one static page, deployed by Vercel (vercel.json, scripts/build-site.sh)
 .github/workflows/   CI and release builds
@@ -220,21 +220,28 @@ site/                website: one static page, deployed by Vercel (vercel.json, 
 
 ## Releasing
 
-1. Update the version in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`, and add an entry to `CHANGELOG.md`.
-2. Commit, then tag and push:
+1. Update the version in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`, then run `npm install` and `cargo check` so `package-lock.json` and `Cargo.lock` follow (CI builds with `--locked`). Add an entry to `CHANGELOG.md`.
+2. Merge that, then push a test tag first. A tag with a dash builds and checks everything but stays a draft that installed copies never see:
 
 ```bash
-git tag v1.1.0
-git push origin main --tags
+git tag v1.2.0-rc.1
+git push origin v1.2.0-rc.1
 ```
 
-GitHub Actions builds macOS, Windows and Linux in parallel and publishes the release once all three succeed and `latest.json` lists a signed update for every platform.
+3. When the draft looks right, push the real tag:
+
+```bash
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+GitHub Actions checks that the tag matches the app version, then builds macOS (universal), Windows x64 and ARM64, and Linux x64 and ARM64 in parallel into one draft release. Once every build is done, it writes `latest.json` with `scripts/latest-json.mjs` and checks the uploaded copy: every platform is there, each entry names the right file, and each signature verifies with the public key in `tauri.conf.json`. Only then does it publish, and it checks that installed copies can see the new version.
 
 Release builds sign the update files with the key in the repository secrets `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. The matching public key is in `src-tauri/tauri.conf.json`. Keep the private key safe: without it, installed copies cannot be updated. `npm run build` does not need the key. To build the signed update files locally, set both variables and run `npm run build -- --config src-tauri/tauri.release.conf.json`.
 
 ## Contributing
 
-Bug reports and pull requests are welcome. Changes to `main` go through a pull request, must pass CI on all three systems, and need a review from the maintainer. To report a security problem, see [SECURITY.md](SECURITY.md). Please keep the app simple: one job, done well. If you are reporting a Linux problem, include your distro, desktop, and whether you use Wayland or X11.
+Bug reports and pull requests are welcome. Changes to `main` go through a pull request, must pass CI on every system, and need a review from the maintainer. To report a security problem, see [SECURITY.md](SECURITY.md). Please keep the app simple: one job, done well. If you are reporting a Linux problem, include your distro, desktop, and whether you use Wayland or X11.
 
 ## License
 
