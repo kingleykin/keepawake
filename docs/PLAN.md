@@ -336,7 +336,7 @@ Luồng hẹn giờ (`lib.rs:460-466`) đọc `snapshot()` mà không giữ khó
 - Khi tự tắt:
   - Dừng phiên qua `stop_if` (mục 11.0) và cập nhật khay cùng cửa sổ.
   - `Session` và `Snapshot` có thêm `stopped_reason`, nên dù không có thông báo, cửa sổ vẫn ghi lý do, ví dụ "Đã tắt: máy đang dùng pin". Dòng này mất khi bật lại *(review)*.
-  - Gửi thông báo nếu cài đặt thông báo đang bật. Nhãn cài đặt đổi thành "Thông báo khi KeepAwake tự tắt" để bao cả hai trường hợp.
+  - Gửi thông báo nếu cài đặt thông báo đang bật. Nhãn cài đặt đổi thành "Thông báo" để bao cả hai trường hợp.
 - Phân biệt rõ ba trường hợp *(Codex)*:
   - **Chắc chắn không có pin:** cài đặt bị mờ, kèm dòng "Không tìm thấy pin".
   - **Không đọc được trạng thái pin:** cài đặt vẫn dùng được, kèm dòng "Không đọc được trạng thái pin".

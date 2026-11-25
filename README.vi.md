@@ -33,7 +33,7 @@
 - **Hai chế độ.** Giữ cả màn hình, hoặc chỉ giữ hệ thống và cho phép màn hình tắt.
 - **Nằm ở khay hệ thống.** Menu hiện thời gian còn lại. Chọn một mốc thời gian trong menu sẽ bật luôn.
 - **Khởi động cùng hệ thống.** Chạy ngầm ở khay, không mở cửa sổ.
-- **Cập nhật.** Cài đặt báo khi có bản mới. Chỉ cài khi bạn bấm Cập nhật.
+- **Cập nhật.** Bản mới hiện trong Cài đặt và menu khay, kèm một thông báo nếu bạn bật thông báo. Chỉ cài khi bạn bấm Cập nhật.
 - **Tiếng Anh và tiếng Việt.** Mặc định tiếng Anh, đổi trong Cài đặt.
 - **Nhẹ.** Viết bằng [Tauri](https://tauri.app) và Rust, bộ cài vài MB.
 - **Trạng thái trung thực.** Chỉ hiện "Đang giữ thức" khi hệ điều hành đã chấp nhận. Nếu bị từ chối, app hiện lỗi.
@@ -156,7 +156,7 @@ Không. App chỉ kết nối mạng để kiểm tra bản mới (tải file `l
 |---|---|---|
 | Khởi động cùng hệ thống | Tắt | Chạy ẩn ở khay. |
 | Nút đóng sẽ ẩn xuống tray | Bật | Nếu tắt, đóng cửa sổ là thoát app. |
-| Thông báo khi KeepAwake tự tắt | Bật | Một thông báo khi hết giờ hoặc khi bảo vệ pin tự tắt giữ thức. |
+| Thông báo | Bật | Một thông báo khi hết giờ, khi bảo vệ pin tự tắt giữ thức, và một lần cho mỗi bản mới. |
 | Khi dùng pin | Vẫn giữ thức | Hoặc tự tắt khi rút sạc, hoặc khi pin xuống dưới 20% lúc đang chạy pin. Chỉ tính khi tình trạng thay đổi lúc KeepAwake đang bật, nên bật khi pin đã yếu vẫn được. Bị mờ trên máy không có pin. |
 | Hiện thời gian trên thanh menu | Bật | Chỉ macOS. |
 | Phím tắt | Tắt | ⌥⌘K / Ctrl+Alt+K. Mặc định tắt vì tổ hợp này có nghĩa khác ở một số nơi: Ctrl+Alt+K là AltGr+K trên một số bàn phím Windows, còn ⌥⌘K mở Web Console của Firefox. Nếu ứng dụng khác đã dùng tổ hợp này, Cài đặt sẽ báo và app vẫn chạy bình thường. |
@@ -164,7 +164,7 @@ Không. App chỉ kết nối mạng để kiểm tra bản mới (tải file `l
 
 **Phím tắt trên Linux.** Phím tắt toàn cục cần X11. Trên Wayland chỉ chạy ở desktop có chuyển phím tắt cho app X11, nên khay và cửa sổ vẫn là cách chắc chắn nhất. Khi chạy trên Wayland, Cài đặt sẽ hiện ghi chú dưới công tắc này.
 
-**Cập nhật.** Vài giây sau khi mở và mỗi lần mở Cài đặt, KeepAwake tải file `latest.json` của bản phát hành mới nhất trên GitHub. Không gửi dữ liệu nào khác. Bản mới chỉ được cài sau khi bạn bấm **Cập nhật**, và chỉ khi có chữ ký bằng khóa cập nhật của dự án. Trên Linux, bản AppImage, `.deb` và `.rpm` đều cập nhật được; bản `.deb` và `.rpm` sẽ hỏi mật khẩu.
+**Cập nhật.** Vài giây sau khi mở, mỗi ngày một lần khi đang chạy, và mỗi lần mở Cài đặt, KeepAwake tải file `latest.json` của bản phát hành mới nhất trên GitHub. Không gửi dữ liệu nào khác. Bản mới hiện trong Cài đặt và thành mục "Cập nhật lên x.y.z…" trong menu khay, và nếu bật thông báo thì bạn nhận một thông báo cho bản đó. Bản mới chỉ được cài sau khi bạn bấm **Cập nhật**, và chỉ khi có chữ ký bằng khóa cập nhật của dự án. Trên Linux, bản AppImage, `.deb` và `.rpm` đều cập nhật được; bản `.deb` và `.rpm` sẽ hỏi mật khẩu.
 
 ## Build từ mã nguồn
 

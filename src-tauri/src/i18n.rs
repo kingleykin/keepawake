@@ -62,6 +62,26 @@ pub fn duration(lang: Language, minutes: u32) -> String {
     }
 }
 
+/// The tray menu item for a newer release.
+pub fn update_item(lang: Language, version: &str) -> String {
+    match lang {
+        Language::En => format!("Update to {version}…"),
+        Language::Vi => format!("Cập nhật lên {version}…"),
+    }
+}
+
+/// The notification for a newer release.
+pub fn update_ready(lang: Language, version: &str) -> String {
+    match lang {
+        Language::En => {
+            format!("KeepAwake {version} is available. Install it from Settings or the tray menu.")
+        }
+        Language::Vi => {
+            format!("Đã có KeepAwake {version}. Cập nhật trong Cài đặt hoặc menu khay.")
+        }
+    }
+}
+
 /// A custom time, e.g. "45 minutes" or "Until 18:30".
 pub fn custom(lang: Language, custom: Custom) -> String {
     match (lang, custom) {

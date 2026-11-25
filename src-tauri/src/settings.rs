@@ -66,6 +66,8 @@ pub struct Settings {
     pub show_time_in_menu_bar: bool,
     pub shortcut: bool,
     pub battery_guard: BatteryGuard,
+    /// The newest version the user has been told about, so each one is announced once.
+    pub announced_update: Option<String>,
 }
 
 impl Default for Settings {
@@ -83,6 +85,7 @@ impl Default for Settings {
             // layouts, and ⌥⌘K opens Firefox's Web Console.
             shortcut: false,
             battery_guard: BatteryGuard::Off,
+            announced_update: None,
         }
     }
 }
@@ -150,9 +153,37 @@ mod tests {
             show_time_in_menu_bar: false,
             shortcut: true,
             battery_guard: BatteryGuard::Below20,
+            announced_update: Some("1.2.0".into()),
         };
         save(&path, &settings).unwrap();
         assert_eq!(load(&path), settings);
+    }
+
+    #[test]
+    fn a_1_1_settings_file_keeps_every_choice() {
+        let path = temp_file("v1_1.json");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(
+            &path,
+            r#"{"language":"vi","closeToTray":false,"durationMin":120,"custom":{"kind":"until","hour":18,"minute":30},"useCustom":false,"mode":"system","notifyWhenDone":false,"shortcut":true}"#,
+        )
+        .unwrap();
+        let loaded = load(&path);
+        assert_eq!(loaded.language, Language::Vi);
+        assert!(!loaded.close_to_tray);
+        assert_eq!(loaded.duration_min, 120);
+        assert_eq!(
+            loaded.custom,
+            Some(Custom::Until {
+                hour: 18,
+                minute: 30
+            })
+        );
+        assert_eq!(loaded.mode, Mode::System);
+        assert!(!loaded.notify_when_done);
+        assert!(loaded.shortcut);
+        assert_eq!(loaded.announced_update, None, "nothing announced yet");
+        assert_eq!(loaded.battery_guard, BatteryGuard::Off);
     }
 
     #[test]

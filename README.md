@@ -39,7 +39,7 @@
 - **Two modes.** Keep the display on, or keep only the system awake and let the screen turn off.
 - **Lives in the tray.** The menu shows the countdown and lets you pick a time, which also switches keep-awake on.
 - **Launch at login.** Starts quietly in the tray.
-- **Updates.** Settings shows when a new version is out. It installs only when you press Install.
+- **Updates.** A new version shows in Settings and the tray menu, with one notification if notifications are on. It installs only when you press Install.
 - **English and Vietnamese.** English is the default. Change it in Settings.
 - **Small.** Built with [Tauri](https://tauri.app) and Rust. The installer is a few megabytes.
 - **Honest status.** "Keeping awake" only shows after the operating system has accepted the request. If it refuses, you see the error instead.
@@ -162,7 +162,7 @@ No. KeepAwake only goes online to check for updates, by downloading `latest.json
 |---|---|---|
 | Launch at login | Off | Starts hidden in the tray. |
 | Close button hides to tray | On | Otherwise closing the window quits. |
-| Notify when KeepAwake switches off | On | One notification when the timer runs out or the battery guard switches keep-awake off. |
+| Notifications | On | One notification when the timer runs out, when the battery guard switches keep-awake off, and once for each new version. |
 | On battery | Keep awake | Or switch off when the charger is unplugged, or when the battery drops below 20% while on battery. Only a change while KeepAwake is on counts, so switching it on when already low works. Greyed out on computers without a battery. |
 | Show time left in the menu bar | On | macOS only. |
 | Shortcut | Off | ⌥⌘K / Ctrl+Alt+K. Off by default because these keys mean something else in some places: Ctrl+Alt+K is AltGr+K on some Windows keyboard layouts, and ⌥⌘K opens Firefox's Web Console. If another app holds these keys, Settings shows a warning and the rest of the app works as usual. |
@@ -170,7 +170,7 @@ No. KeepAwake only goes online to check for updates, by downloading `latest.json
 
 **Shortcut on Linux.** Global shortcuts need X11. On Wayland they only work in desktops that pass them through to X11 apps, so the tray and window remain the reliable way. Settings shows a note under the switch when it runs on Wayland.
 
-**Updates.** KeepAwake asks GitHub for `latest.json` from the newest release a few seconds after it starts and whenever you open Settings. No other data is sent. An update is only installed after you press **Install**, and only if it is signed with the project's update key. On Linux, updates work for the AppImage, `.deb` and `.rpm` builds; the package builds ask for your password.
+**Updates.** KeepAwake asks GitHub for `latest.json` from the newest release a few seconds after it starts, once a day while it runs, and whenever you open Settings. No other data is sent. A new version shows in Settings and as "Update to x.y.z…" in the tray menu, and you get one notification for it if notifications are on. An update is only installed after you press **Install**, and only if it is signed with the project's update key. On Linux, updates work for the AppImage, `.deb` and `.rpm` builds; the package builds ask for your password.
 
 ## Build from source
 
