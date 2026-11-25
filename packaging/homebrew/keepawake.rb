@@ -1,6 +1,6 @@
 cask "keepawake" do
-  version "1.1.0"
-  sha256 "10261ae0f299181363da931706be4147be5113427f8e88ef8925abc23ab5c3e9"
+  version "1.2.0"
+  sha256 "24b4b32306985ffe8d5000006533d7616887814dbbab9812a37fe3881bc3b0e8"
 
   url "https://github.com/kingleykin/keepawake/releases/download/v#{version}/KeepAwake_#{version}_universal.dmg"
   name "KeepAwake"
